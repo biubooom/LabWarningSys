@@ -33,6 +33,7 @@ Core/Inc/*.tmp
 # STM32F103XX_FLASH.ld (uncomment if you want to ignore customizations)
 
 # VS Code workspace and settings
+.settings/
 .vscode/
 *.code-workspace
 
