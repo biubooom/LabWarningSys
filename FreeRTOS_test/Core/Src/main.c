@@ -19,6 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "gpio.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -179,6 +181,18 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
+}
+
+/* FreeRTOS stack overflow hook required by configCHECK_FOR_STACK_OVERFLOW > 1 */
+void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
+{
+  ( void ) xTask;
+  ( void ) pcTaskName;
+
+  taskDISABLE_INTERRUPTS();
+  for( ;; )
+  {
+  }
 }
 #ifdef USE_FULL_ASSERT
 /**
