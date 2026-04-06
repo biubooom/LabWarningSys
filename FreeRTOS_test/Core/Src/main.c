@@ -61,7 +61,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 /* LED Blink Task */
-void LED_Blink_Task(void *pvParameters)
+void LED0_Blink_Task(void *pvParameters)
 {
     while(1)
     {
@@ -69,6 +69,15 @@ void LED_Blink_Task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
         LED0_Enable(0);  // Turn off LED0
         vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
+    }
+}
+
+void LED1_Blink_Task(void *pvParameters)
+{
+    while(1)
+    {
+      LED1_Toggle();
+      vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -105,8 +114,8 @@ int main(void)
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
   // Create LED blink task
-  xTaskCreate(LED_Blink_Task, "LED_Blink", 128, NULL, tskIDLE_PRIORITY + 1, &LED_Blink_handle);
-
+  xTaskCreate(LED0_Blink_Task, "LED0_Blink", 128, NULL, tskIDLE_PRIORITY + 1, &LED_Blink_handle);
+  xTaskCreate(LED1_Blink_Task,"LED1_Blink",128,NULL,tskIDLE_PRIORITY + 1, NULL);
   // Start the scheduler
   vTaskStartScheduler();
 
