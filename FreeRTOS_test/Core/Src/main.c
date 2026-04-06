@@ -34,7 +34,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define LED0_Enable(x)  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, (GPIO_PinState)(x))
+#define LED0_Toggle()  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin)
+#define LED1_Enable(x)  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, (GPIO_PinState)(x))
+#define LED1_Toggle()  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -45,7 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+TaskHandle_t LED_Blink_handle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,6 +60,18 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/* LED Blink Task */
+void LED_Blink_Task(void *pvParameters)
+{
+    while(1)
+    {
+        LED0_Enable(1);  // Turn on LED0
+        vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
+        LED0_Enable(0);  // Turn off LED0
+        vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -67,7 +82,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -89,6 +104,11 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
+  // Create LED blink task
+  xTaskCreate(LED_Blink_Task, "LED_Blink", 128, NULL, tskIDLE_PRIORITY + 1, &LED_Blink_handle);
+
+  // Start the scheduler
+  vTaskStartScheduler();
 
   /* USER CODE END 2 */
 
