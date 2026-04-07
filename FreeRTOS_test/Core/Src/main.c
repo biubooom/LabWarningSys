@@ -19,11 +19,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "gpio.h"
-#include "FreeRTOS.h"
-#include "task.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "start_task.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* USER CODE END Includes */
 
@@ -34,10 +35,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define LED0_Enable(x)  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, (GPIO_PinState)(x))
-#define LED0_Toggle()  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin)
-#define LED1_Enable(x)  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, (GPIO_PinState)(x))
-#define LED1_Toggle()  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,7 +45,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-TaskHandle_t LED_Blink_handle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,27 +55,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-/* LED Blink Task */
-void LED0_Blink_Task(void *pvParameters)
-{
-    while(1)
-    {
-        LED0_Enable(1);  // Turn on LED0
-        vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
-        LED0_Enable(0);  // Turn off LED0
-        vTaskDelay(pdMS_TO_TICKS(300));  // Delay 300ms
-    }
-}
-
-void LED1_Blink_Task(void *pvParameters)
-{
-    while(1)
-    {
-      LED1_Toggle();
-      vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -113,10 +88,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  // Create LED blink task
-  xTaskCreate(LED0_Blink_Task, "LED0_Blink", 128, NULL, tskIDLE_PRIORITY + 1, &LED_Blink_handle);
-  xTaskCreate(LED1_Blink_Task,"LED1_Blink",128,NULL,tskIDLE_PRIORITY + 1, NULL);
-  // Start the scheduler
+  xTaskCreate(StartTask, START_TASK_NAME, START_TASK_STACK_SIZE, NULL, START_TASK_PRIORITY, &StartTaskHandle);
   vTaskStartScheduler();
 
   /* USER CODE END 2 */
@@ -173,6 +145,17 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+  (void)xTask;
+  (void)pcTaskName;
+
+  taskDISABLE_INTERRUPTS();
+  while (1)
+  {
+  }
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -210,18 +193,6 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
-}
-
-/* FreeRTOS stack overflow hook required by configCHECK_FOR_STACK_OVERFLOW > 1 */
-void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
-{
-  ( void ) xTask;
-  ( void ) pcTaskName;
-
-  taskDISABLE_INTERRUPTS();
-  for( ;; )
-  {
-  }
 }
 #ifdef USE_FULL_ASSERT
 /**

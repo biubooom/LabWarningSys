@@ -20,6 +20,7 @@ enable_language(C ASM)
 add_executable(${CMAKE_PROJECT_NAME})
 
 add_subdirectory(cmake/stm32cubemx)
+include(cmake/user-project.cmake)
 
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE)
