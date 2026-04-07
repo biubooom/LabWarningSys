@@ -15,7 +15,6 @@ set(MX_Include_Dirs
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/CMSIS/Device/ST/STM32F1xx/Include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/CMSIS/Include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/Hardware/Inc      #添加的硬件驱动头文件路径
 )
 
 # STM32CubeMX generated application sources
@@ -48,19 +47,6 @@ set(STM32_Drivers_Src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c
 )
 
-# FreeRTOS Kernel source files
-set(FREERTOS_Src
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/croutine.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/event_groups.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/list.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/queue.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/stream_buffer.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/tasks.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/timers.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/portable/GCC/ARM_CM3/port.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../FreeRTOS/Source/portable/MemMang/heap_4.c
-)
-
 # Drivers Midllewares
 
 
@@ -85,23 +71,15 @@ add_library(STM32_Drivers OBJECT)
 target_sources(STM32_Drivers PRIVATE ${STM32_Drivers_Src})
 target_link_libraries(STM32_Drivers PUBLIC stm32cubemx)
 
-# Create FreeRTOS object library
-add_library(freertos_kernel OBJECT)
-target_sources(freertos_kernel PRIVATE ${FREERTOS_Src})
-target_include_directories(freertos_kernel PRIVATE
-    ${CMAKE_SOURCE_DIR}/FreeRTOS/Source/include
-    ${CMAKE_SOURCE_DIR}/FreeRTOS/Source/portable/GCC/ARM_CM3
-)
-
-target_link_libraries(freertos_kernel PUBLIC stm32cubemx)
 
 # Add STM32CubeMX generated application sources to the project
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${MX_Application_Src})
 
+# Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE ${MX_LINK_DIRS})
 
 # Add libraries to the project
-target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS} freertos_kernel)
+target_link_libraries(${CMAKE_PROJECT_NAME} ${MX_LINK_LIBS})
 
 # Add the map file to the list of files to be removed with 'clean' target
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${CMAKE_PROJECT_NAME}.map)
@@ -110,9 +88,3 @@ set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${
 if((CMAKE_C_STANDARD EQUAL 90) OR (CMAKE_C_STANDARD EQUAL 99))
     message(ERROR "Generated code requires C11 or higher")
 endif()
-
-# Add FreeRTOS include directories
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    ${CMAKE_SOURCE_DIR}/FreeRTOS/Source/include
-    ${CMAKE_SOURCE_DIR}/FreeRTOS/Source/portable/GCC/ARM_CM3
-)
