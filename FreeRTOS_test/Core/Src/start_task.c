@@ -1,6 +1,7 @@
 #include "start_task.h"
 
 #include "gpio.h"
+#include "OLED.h"
 #include "key.h"
 
 TaskHandle_t StartTaskHandle;
@@ -8,6 +9,7 @@ TaskHandle_t StartTaskHandle;
 static TaskHandle_t LED0BlinkHandle;
 static TaskHandle_t LED1BlinkHandle;
 static TaskHandle_t KeyScanHandle;
+static TaskHandle_t OLEDTaskHandle;
 
 /*LED0*/
 #define LED0_TASK_NAME             "LED0_Blink"
@@ -21,11 +23,20 @@ static TaskHandle_t KeyScanHandle;
 #define KEY_SCAN_TASK_NAME         "Key_Scan"
 #define KEY_SCAN_TASK_STACK_SIZE   128U
 #define KEY_SCAN_TASK_PRIORITY     (tskIDLE_PRIORITY + 2)
+/*OLED*/
+#define OLED_TASK_NAME             "OLED_Task"
+#define OLED_TASK_STACK_SIZE       256U
+#define OLED_TASK_PRIORITY         (tskIDLE_PRIORITY + 1)
 
 #define LED0_Enable(x)  HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, (GPIO_PinState)(x))
 #define LED0_Toggle()  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin)
 #define LED1_Toggle()  HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin)
 
+/**
+  * @brief  LED0闪烁任务
+  * @param  pvParameters: 任务参数，当前未使用
+  * @retval 无
+  */
 static void LED0_Blink_Task(void *pvParameters)
 {
     (void)pvParameters;  //避免编译器警告，使用该参数时删除
@@ -37,6 +48,11 @@ static void LED0_Blink_Task(void *pvParameters)
     }
 }
 
+/**
+  * @brief  LED1闪烁任务
+  * @param  pvParameters: 任务参数，当前未使用
+  * @retval 无
+  */
 static void LED1_Blink_Task(void *pvParameters)
 {
     (void)pvParameters;
@@ -113,6 +129,37 @@ static void Key_Scan_Task(void *pvParameters)
     }
 }
 
+/**
+  * @brief  OLED显示任务
+  * @param  pvParameters: 任务参数，当前未使用
+  * @retval 无
+  */
+static void OLED_Task(void *pvParameters)
+{
+    (void)pvParameters;
+
+    if (OLED_Init() != OLED_OK)
+    {
+        Error_Handler();
+    }
+
+    OLED_ShowString(1, 1, "FreeRTOS OLED");
+    OLED_ShowString(2, 1, "Tick:");
+    OLED_ShowString(3, 1, "KEY0/1 Suspend");
+    OLED_ShowString(4, 1, "KEY2/3 Toggle ");
+
+    while (1)
+    {
+        OLED_ShowNum(2, 6, xTaskGetTickCount(), 10);
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+/**
+  * @brief  启动任务，负责创建系统中的其他应用任务
+  * @param  pvParameters: 任务参数，当前未使用
+  * @retval 无
+  */
 void StartTask(void *pvParameters)
 {
     BaseType_t task_status;
@@ -126,6 +173,12 @@ void StartTask(void *pvParameters)
     }
 
     task_status = xTaskCreate(LED1_Blink_Task, LED1_TASK_NAME, LED1_TASK_STACK_SIZE, NULL, LED1_TASK_PRIORITY, &LED1BlinkHandle);
+    if (task_status != pdPASS)
+    {
+        Error_Handler();
+    }
+
+    task_status = xTaskCreate(OLED_Task, OLED_TASK_NAME, OLED_TASK_STACK_SIZE, NULL, OLED_TASK_PRIORITY, &OLEDTaskHandle);
     if (task_status != pdPASS)
     {
         Error_Handler();
