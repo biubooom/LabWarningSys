@@ -62,6 +62,32 @@ static void OLED_DelayMs(uint32_t Delay)
 }
 
 /**
+  * @brief  进入OLED软件IIC临界区，避免任务切换打断通信时序
+  * @param  无
+  * @retval 无
+  */
+static void OLED_EnterCritical(void)
+{
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        taskENTER_CRITICAL();
+    }
+}
+
+/**
+  * @brief  退出OLED软件IIC临界区
+  * @param  无
+  * @retval 无
+  */
+static void OLED_ExitCritical(void)
+{
+    if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
+    {
+        taskEXIT_CRITICAL();
+    }
+}
+
+/**
   * @brief  初始化OLED所需GPIO
   * @param  无
   * @retval 无
@@ -136,11 +162,13 @@ static void OLED_I2C_SendByte(uint8_t Byte)
   */
 static void OLED_WriteCommand(uint8_t Command)
 {
+    OLED_EnterCritical();
     OLED_I2C_Start();
     OLED_I2C_SendByte(0x78);
     OLED_I2C_SendByte(0x00);
     OLED_I2C_SendByte(Command);
     OLED_I2C_Stop();
+    OLED_ExitCritical();
 }
 
 /**
@@ -150,11 +178,13 @@ static void OLED_WriteCommand(uint8_t Command)
   */
 static void OLED_WriteData(uint8_t Data)
 {
+    OLED_EnterCritical();
     OLED_I2C_Start();
     OLED_I2C_SendByte(0x78);
     OLED_I2C_SendByte(0x40);
     OLED_I2C_SendByte(Data);
     OLED_I2C_Stop();
+    OLED_ExitCritical();
 }
 
 /**
