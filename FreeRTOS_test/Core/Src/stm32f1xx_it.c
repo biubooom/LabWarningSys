@@ -35,6 +35,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,7 +50,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-//声明xPortSysTickHandler函数，该函数由FreeRTOS提供，用于处理SysTick中断
+//
 extern void xPortSysTickHandler( void ); 
 /* USER CODE END PFP */
 
@@ -59,6 +60,7 @@ extern void xPortSysTickHandler( void );
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern DMA_HandleTypeDef hdma_adc1;
 extern TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN EV */
@@ -144,19 +146,6 @@ void UsageFault_Handler(void)
 }
 
 /**
-  * @brief This function handles System service call via SWI instruction.
-  */
-// void SVC_Handler(void)
-// {
-//   /* USER CODE BEGIN SVCall_IRQn 0 */
-
-//   /* USER CODE END SVCall_IRQn 0 */
-//   /* USER CODE BEGIN SVCall_IRQn 1 */
-
-//   /* USER CODE END SVCall_IRQn 1 */
-// }
-
-/**
   * @brief This function handles Debug monitor.
   */
 void DebugMon_Handler(void)
@@ -170,19 +159,6 @@ void DebugMon_Handler(void)
 }
 
 /**
-  * @brief This function handles Pendable request for system service.
-  */
-// void PendSV_Handler(void)
-// {
-//   /* USER CODE BEGIN PendSV_IRQn 0 */
-
-//   /* USER CODE END PendSV_IRQn 0 */
-//   /* USER CODE BEGIN PendSV_IRQn 1 */
-
-//   /* USER CODE END PendSV_IRQn 1 */
-// }
-
-/**
   * @brief This function handles System tick timer.
   */
 void SysTick_Handler(void)
@@ -192,7 +168,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
 
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  // 当前调度器状态不为未启动时，调用xPortSysTickHandler函数进行系统调度
+  // 閻熸粎澧楅幐鍛婃櫠閻樺灚瀚柛鎰╁妼椤斿﹪鏌涢敐鍐ㄥ濠殿喗鎮傞獮鈧ù锝夘棑閻熸繂鈽夐幘璺哄妺婵犫偓椤撱垹瑙︽い鏍ㄨ壘琚熼梺鍝勫暢椤旀劗妲愬┑鍫熷闁告劦浜濋弳寮淧ortSysTickHandler闂佸憡鍨兼慨銈夊汲閻斿憡浜ゆ繛鎴炵矤閺€鐣岀磼椤栨繂鍚圭紒顔挎閹奉偊宕橀妸銉敽
   if(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
   {
     xPortSysTickHandler();
@@ -207,6 +183,20 @@ void SysTick_Handler(void)
 /* For the available peripheral interrupt handler names,                      */
 /* please refer to the startup file (startup_stm32f1xx.s).                    */
 /******************************************************************************/
+
+/**
+  * @brief This function handles DMA1 channel1 global interrupt.
+  */
+void DMA1_Channel1_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_adc1);
+  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
+
+  /* USER CODE END DMA1_Channel1_IRQn 1 */
+}
 
 /**
   * @brief This function handles TIM4 global interrupt.

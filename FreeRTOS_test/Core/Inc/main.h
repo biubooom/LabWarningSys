@@ -65,6 +65,14 @@ void Error_Handler(void);
 #define Key2_GPIO_Port GPIOC
 #define Key3_Pin GPIO_PIN_3
 #define Key3_GPIO_Port GPIOC
+#define ADC1_MQ2_Pin GPIO_PIN_1
+#define ADC1_MQ2_GPIO_Port GPIOA
+#define ADC1_Light_Pin GPIO_PIN_2
+#define ADC1_Light_GPIO_Port GPIOA
+#define OW_DQ_Pin GPIO_PIN_4
+#define OW_DQ_GPIO_Port GPIOA
+#define DHT22__OW_DQ_Pin GPIO_PIN_5
+#define DHT22__OW_DQ_GPIO_Port GPIOA
 #define LED0_Pin GPIO_PIN_4
 #define LED0_GPIO_Port GPIOC
 #define LED1_Pin GPIO_PIN_5
@@ -73,6 +81,10 @@ void Error_Handler(void);
 #define OLED_SCL_GPIO_Port GPIOB
 #define OLED_SDA_Pin GPIO_PIN_5
 #define OLED_SDA_GPIO_Port GPIOB
+#define IIC_SCL_Pin GPIO_PIN_8
+#define IIC_SCL_GPIO_Port GPIOB
+#define IIC_SDA_Pin GPIO_PIN_9
+#define IIC_SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
