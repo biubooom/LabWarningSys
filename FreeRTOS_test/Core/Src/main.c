@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -91,6 +92,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_NVIC_DisableIRQ(DMA1_Channel1_IRQn);
   xTaskCreate(StartTask, START_TASK_NAME, START_TASK_STACK_SIZE, NULL, START_TASK_PRIORITY, &StartTaskHandle);

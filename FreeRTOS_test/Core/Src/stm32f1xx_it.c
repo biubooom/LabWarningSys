@@ -50,7 +50,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-//
+//声明xPortSysTickHandler函数，该函数由FreeRTOS提供，用于处理SysTick中断
 extern void xPortSysTickHandler( void ); 
 /* USER CODE END PFP */
 
@@ -61,6 +61,7 @@ extern void xPortSysTickHandler( void );
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
+extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN EV */
@@ -168,7 +169,7 @@ void SysTick_Handler(void)
   /* USER CODE END SysTick_IRQn 0 */
 
   /* USER CODE BEGIN SysTick_IRQn 1 */
-  // 閻熸粎澧楅幐鍛婃櫠閻樺灚瀚柛鎰╁妼椤斿﹪鏌涢敐鍐ㄥ濠殿喗鎮傞獮鈧ù锝夘棑閻熸繂鈽夐幘璺哄妺婵犫偓椤撱垹瑙︽い鏍ㄨ壘琚熼梺鍝勫暢椤旀劗妲愬┑鍫熷闁告劦浜濋弳寮淧ortSysTickHandler闂佸憡鍨兼慨銈夊汲閻斿憡浜ゆ繛鎴炵矤閺€鐣岀磼椤栨繂鍚圭紒顔挎閹奉偊宕橀妸銉敽
+  // 当前调度器状态不为未启动时，调用xPortSysTickHandler函数进行系统调度
   if(xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
   {
     xPortSysTickHandler();
@@ -210,6 +211,20 @@ void TIM4_IRQHandler(void)
   /* USER CODE BEGIN TIM4_IRQn 1 */
 
   /* USER CODE END TIM4_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART1_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART1_IRQn 0 */
+
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
+  /* USER CODE END USART1_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
