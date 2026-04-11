@@ -1,0 +1,111 @@
+menu "LabWarning Configuration"
+
+    menu "Wi-Fi Configuration"
+
+        config APP_WIFI_SSID
+            string "WiFi SSID"
+            default "WhybigBarb0o"
+            help
+                配置设备需要连接的Wi-Fi热点名称。
+
+        config APP_WIFI_PASSWORD
+            string "WiFi Password"
+            default "biuboomcua"
+            help
+                配置设备需要连接的Wi-Fi热点密码。
+
+        config APP_WIFI_MAXIMUM_RETRY
+            int "Maximum retry"
+            range 1 100
+            default 10
+            help
+                配置Wi-Fi连接失败后的最大重试次数。
+
+    endmenu
+
+    menu "OneNET Configuration"
+
+        config APP_ONENET_HOST
+            string "MQTT Host"
+            default "mqtt://studio-mqtt.heclouds.com:1883"
+            help
+                配置OneNET平台的MQTT服务器地址。
+
+        config APP_ONENET_VERSION
+            string "Token Version"
+            default "2018-10-31"
+            help
+                配置OneNET Token版本号。
+
+        config APP_ONENET_METHOD
+            string "Token Method"
+            default "sha256"
+            help
+                配置OneNET Token签名算法。
+
+        config APP_ONENET_TOKEN_EXPIRY
+            string "Token Expiry"
+            default "1893456000"
+            help
+                配置OneNET Token过期时间戳，单位为秒。
+
+        config APP_ONENET_PRODUCT_ID
+            string "Product ID"
+            default "psBD4RzYDw"
+            help
+                配置OneNET产品ID。
+
+        config APP_ONENET_DEVICE_NAME
+            string "Device Name"
+            default "ESP32-S3"
+            help
+                配置OneNET设备名称。
+
+        config APP_ONENET_DEVICE_KEY
+            string "Device Key"
+            default "bm9LcTExUFNtOXFsaUY4dkg4MUZHdHdNdTY3WE80NDQ="
+            help
+                配置OneNET设备密钥。
+
+    endmenu
+
+    menu "UART Configuration"
+
+        config APP_UART_PORT
+            int "UART port"
+            range 0 2
+            default 1
+            help
+                配置与STM32通信使用的UART控制器编号。
+
+        config APP_UART_BAUD_RATE
+            int "UART baud rate"
+            range 1200 921600
+            default 115200
+            help
+                配置ESP32与STM32之间的串口波特率。
+
+        config APP_UART_TX_PIN
+            int "UART TX GPIO"
+            range -1 48
+            default 17
+            help
+                配置ESP32串口TX引脚，若当前仅接收STM32数据可保持默认。
+
+        config APP_UART_RX_PIN
+            int "UART RX GPIO"
+            range -1 48
+            default 18
+            help
+                配置ESP32连接STM32_TX的串口RX引脚。
+
+        config APP_UART_BUFFER_SIZE
+            int "UART buffer size"
+            range 128 4096
+            default 1024
+            help
+                配置UART驱动接收缓冲区大小。
+
+    endmenu
+
+endmenu

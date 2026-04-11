@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -29,6 +30,37 @@ static onenet_telemetry_t s_last_telemetry = {
     .smoke = 10.0f,
     .alarm = false,
 };
+
+/**
+  * @brief  按平台步长0.1对浮点数进行量化，避免上传时出现浮点精度误差
+  * @param  value: 原始浮点值
+  * @retval 量化后的浮点值
+  */
+static float quantize_step_0_1(float value)
+{
+    return roundf(value * 10.0f) / 10.0f;
+}
+
+/**
+  * @brief  向属性对象中添加固定1位小数的数值字段
+  * @param  object: 目标JSON对象
+  * @param  key: 字段名
+  * @param  value: 原始浮点值
+  * @retval true: 添加成功
+  *         false: 添加失败
+  */
+static bool add_fixed_1_decimal_number(cJSON *object, const char *key, float value)
+{
+    char number_buffer[16];
+
+    if ((object == NULL) || (key == NULL))
+    {
+        return false;
+    }
+
+    (void)snprintf(number_buffer, sizeof(number_buffer), "%.1f", quantize_step_0_1(value));
+    return (cJSON_AddRawToObject(object, key, number_buffer) != NULL);
+}
 
 /**
   * @brief  判断字符是否为URL编码中的免编码字符
@@ -161,10 +193,19 @@ static esp_err_t publish_property_report(const onenet_telemetry_t *telemetry)
     cJSON *params = cJSON_AddObjectToObject(root, "params");
     char *payload = NULL;
     esp_err_t ret = ESP_FAIL;
+    float temperature_value;
+    float humidity_value;
+    float light_value;
+    float smoke_value;
 
     if (root == NULL || params == NULL) {
         goto cleanup;
     }
+
+    temperature_value = quantize_step_0_1(telemetry->temperature);
+    humidity_value = quantize_step_0_1(telemetry->humidity);
+    light_value = quantize_step_0_1(telemetry->light);
+    smoke_value = quantize_step_0_1(telemetry->smoke);
 
     cJSON_AddStringToObject(root, "id", "1");
     cJSON_AddStringToObject(root, "version", "1.0");
@@ -179,10 +220,13 @@ static esp_err_t publish_property_report(const onenet_telemetry_t *telemetry)
         goto cleanup;
     }
 
-    cJSON_AddNumberToObject(temperature, "value", telemetry->temperature);
-    cJSON_AddNumberToObject(humidity, "value", telemetry->humidity);
-    cJSON_AddNumberToObject(light, "value", telemetry->light);
-    cJSON_AddNumberToObject(smoke, "value", telemetry->smoke);
+    if (!add_fixed_1_decimal_number(temperature, "value", temperature_value) ||
+        !add_fixed_1_decimal_number(humidity, "value", humidity_value) ||
+        !add_fixed_1_decimal_number(light, "value", light_value) ||
+        !add_fixed_1_decimal_number(smoke, "value", smoke_value))
+    {
+        goto cleanup;
+    }
     cJSON_AddBoolToObject(alarm, "value", telemetry->alarm);
 
     payload = cJSON_PrintUnformatted(root);

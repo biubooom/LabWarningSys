@@ -57,3 +57,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${USER_FREERTOS_DIR}/include
     ${USER_FREERTOS_PORT_DIR}
 )
+
+# 使newlib-nano的printf支持浮点格式化，便于串口发送JSON浮点数据。
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+    -u _printf_float
+)
