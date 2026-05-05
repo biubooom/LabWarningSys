@@ -13,6 +13,8 @@ typedef enum
     DHT22_ERROR
 } DHT22_Status_t;
 
+#define DHT22_GROUP_COUNT 4U
+
 /**
   * @brief  初始化DHT22驱动
   * @param  无
@@ -20,6 +22,8 @@ typedef enum
   *         DHT22_ERROR: 初始化失败
   */
 DHT22_Status_t DHT22_Init(void);
+
+DHT22_Status_t DHT22_InitGroup(uint8_t GroupIndex);
 
 /**
   * @brief  读取DHT22温湿度数据
@@ -29,6 +33,8 @@ DHT22_Status_t DHT22_Init(void);
   *         DHT22_ERROR: 读取失败
   */
 DHT22_Status_t DHT22_Read(float *Temperature, float *Humidity);
+
+DHT22_Status_t DHT22_ReadGroup(uint8_t GroupIndex, float *Temperature, float *Humidity);
 
 #ifdef __cplusplus
 }

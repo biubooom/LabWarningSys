@@ -241,6 +241,7 @@ void Onewire_SkipRom(void)
 /**
   * @brief  发送Match ROM命令并匹配指定设备
   * @param  RomCode: 8字节ROM码
+  * @note   当总线上存在多个DS18B20时，后续命令只会作用于该ROM对应的器件
   * @retval 无
   */
 void Onewire_MatchRom(const uint8_t RomCode[8])
@@ -257,6 +258,125 @@ void Onewire_MatchRom(const uint8_t RomCode[8])
     {
         Onewire_WriteByte(RomCode[i]);
     }
+}
+
+/**
+  * @brief  搜索单总线上的全部设备ROM地址
+  * @param  RomCodes: ROM地址输出缓冲区
+  * @param  MaxDevices: 最多搜索的设备数量
+  * @param  FoundDevices: 实际搜索到的设备数量输出
+  * @note   使用Dallas Search ROM算法遍历总线分叉，适用于多个DS18B20共线场景
+  * @retval ONEWIRE_OK: 搜索成功
+  *         ONEWIRE_ERROR: 搜索失败
+  */
+Onewire_Status_t Onewire_SearchRomCodes(uint8_t (*RomCodes)[ONEWIRE_ROM_CODE_SIZE], uint8_t MaxDevices, uint8_t *FoundDevices)
+{
+    uint8_t device_count = 0U;
+    uint8_t last_discrepancy = 0U;
+    uint8_t last_device_flag = 0U;
+    uint8_t rom_code[ONEWIRE_ROM_CODE_SIZE] = {0U};
+
+    if ((RomCodes == NULL) || (FoundDevices == NULL) || (MaxDevices == 0U))
+    {
+        return ONEWIRE_ERROR;
+    }
+
+    *FoundDevices = 0U;
+    Onewire_Lock();
+
+    /* 按 Dallas Search ROM 算法遍历总线上的全部设备地址 */
+    while ((last_device_flag == 0U) && (device_count < MaxDevices))
+    {
+        uint8_t id_bit_number = 1U;
+        uint8_t rom_byte_number = 0U;
+        uint8_t rom_byte_mask = 1U;
+        uint8_t discrepancy_marker = 0U;
+
+        if (Onewire_Reset() == 0U)
+        {
+            Onewire_Unlock();
+            return (device_count > 0U) ? ONEWIRE_OK : ONEWIRE_ERROR;
+        }
+
+        Onewire_WriteByte(0xF0U);
+
+        while (rom_byte_number < ONEWIRE_ROM_CODE_SIZE)
+        {
+            uint8_t id_bit = Onewire_ReadBit();
+            uint8_t cmp_id_bit = Onewire_ReadBit();
+            uint8_t search_direction;
+
+            if ((id_bit == 1U) && (cmp_id_bit == 1U))
+            {
+                Onewire_Unlock();
+                return (device_count > 0U) ? ONEWIRE_OK : ONEWIRE_ERROR;
+            }
+
+            if (id_bit != cmp_id_bit)
+            {
+                /* 两次读值互补时，说明该位无分叉，直接沿现有方向走 */
+                search_direction = id_bit;
+            }
+            else
+            {
+                /* 两位都为 0 表示总线上该位存在分叉，需要记录回溯点 */
+                if (id_bit_number < last_discrepancy)
+                {
+                    search_direction = (uint8_t)((rom_code[rom_byte_number] & rom_byte_mask) != 0U);
+                }
+                else
+                {
+                    search_direction = (uint8_t)(id_bit_number == last_discrepancy);
+                }
+
+                if (search_direction == 0U)
+                {
+                    discrepancy_marker = id_bit_number;
+                }
+            }
+
+            if (search_direction != 0U)
+            {
+                rom_code[rom_byte_number] |= rom_byte_mask;
+            }
+            else
+            {
+                rom_code[rom_byte_number] &= (uint8_t)(~rom_byte_mask);
+            }
+
+            Onewire_WriteBit(search_direction);
+            id_bit_number++;
+            rom_byte_mask <<= 1U;
+
+            if (rom_byte_mask == 0U)
+            {
+                rom_byte_number++;
+                rom_byte_mask = 1U;
+            }
+        }
+
+        last_discrepancy = discrepancy_marker;
+        if (last_discrepancy == 0U)
+        {
+            last_device_flag = 1U;
+        }
+
+        /* ROM 最后 1 字节是 CRC，校验不过则丢弃该地址 */
+        if (Onewire_Crc8(rom_code, ONEWIRE_ROM_CODE_SIZE - 1U) != rom_code[ONEWIRE_ROM_CODE_SIZE - 1U])
+        {
+            continue;
+        }
+
+        for (uint8_t i = 0U; i < ONEWIRE_ROM_CODE_SIZE; i++)
+        {
+            RomCodes[device_count][i] = rom_code[i];
+        }
+        device_count++;
+    }
+
+    Onewire_Unlock();
+    *FoundDevices = device_count;
+    return (device_count > 0U) ? ONEWIRE_OK : ONEWIRE_ERROR;
 }
 
 /**

@@ -15,6 +15,7 @@ extern "C" {
 extern TaskHandle_t StartTaskHandle;
 
 void StartTask(void *pvParameters);
+void SensorDetect_HandleExti(uint16_t GPIO_Pin);
 
 #ifdef __cplusplus
 }

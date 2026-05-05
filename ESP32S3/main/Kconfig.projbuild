@@ -88,16 +88,16 @@ menu "LabWarning Configuration"
         config APP_UART_TX_PIN
             int "UART TX GPIO"
             range -1 48
-            default 17
+            default 42
             help
-                配置ESP32串口TX引脚，若当前仅接收STM32数据可保持默认。
+                配置ESP32串口TX引脚。当前硬件按 GPIO42 接 STM32 PA10(USART1_RX)。
 
         config APP_UART_RX_PIN
             int "UART RX GPIO"
             range -1 48
-            default 18
+            default 41
             help
-                配置ESP32连接STM32_TX的串口RX引脚。
+                配置ESP32串口RX引脚。当前硬件按 GPIO41 接 STM32 PA9(USART1_TX)。
 
         config APP_UART_BUFFER_SIZE
             int "UART buffer size"
@@ -105,6 +105,238 @@ menu "LabWarning Configuration"
             default 1024
             help
                 配置UART驱动接收缓冲区大小。
+
+    endmenu
+
+    menu "LCD Configuration"
+
+        config APP_LCD_H_RES
+            int "LCD horizontal resolution"
+            range 1 480
+            default 480
+            help
+                配置LCD水平分辨率。
+
+        config APP_LCD_V_RES
+            int "LCD vertical resolution"
+            range 1 480
+            default 320
+            help
+                配置LCD垂直分辨率。
+
+        config APP_LCD_PIXEL_CLOCK_HZ
+            int "LCD i80 pixel clock (Hz)"
+            range 1000000 80000000
+            default 10000000
+            help
+                配置LCD 8080总线的像素时钟频率。
+
+        config APP_LCD_DRAW_BUF_LINES
+            int "LVGL draw buffer lines"
+            range 10 120
+            default 40
+            help
+                配置LVGL每个绘制缓冲区包含的行数。
+
+        config APP_LCD_D0_PIN
+            int "LCD D0 GPIO"
+            range -1 48
+            default 4
+            help
+                8bit 8080 LCD 数据线 D0。
+
+        config APP_LCD_D1_PIN
+            int "LCD D1 GPIO"
+            range -1 48
+            default 6
+            help
+                8bit 8080 LCD 数据线 D1。
+
+        config APP_LCD_D2_PIN
+            int "LCD D2 GPIO"
+            range -1 48
+            default 5
+            help
+                8bit 8080 LCD 数据线 D2。
+
+        config APP_LCD_D3_PIN
+            int "LCD D3 GPIO"
+            range -1 48
+            default 15
+            help
+                8bit 8080 LCD 数据线 D3。
+
+        config APP_LCD_D4_PIN
+            int "LCD D4 GPIO"
+            range -1 48
+            default 7
+            help
+                8bit 8080 LCD 数据线 D4。
+
+        config APP_LCD_D5_PIN
+            int "LCD D5 GPIO"
+            range -1 48
+            default 17
+            help
+                8bit 8080 LCD 数据线 D5。
+
+        config APP_LCD_D6_PIN
+            int "LCD D6 GPIO"
+            range -1 48
+            default 16
+            help
+                8bit 8080 LCD 数据线 D6。
+
+        config APP_LCD_D7_PIN
+            int "LCD D7 GPIO"
+            range -1 48
+            default 18
+            help
+                8bit 8080 LCD 数据线 D7。
+
+        config APP_LCD_WR_PIN
+            int "LCD WR GPIO"
+            range -1 48
+            default 10
+            help
+                8bit 8080 LCD WR 引脚。
+
+        config APP_LCD_RD_PIN
+            int "LCD RD GPIO"
+            range -1 48
+            default -1
+            help
+                8bit 8080 LCD RD 引脚，若不读回可保持为 -1。
+
+        config APP_LCD_DC_PIN
+            int "LCD DC GPIO"
+            range -1 48
+            default 8
+            help
+                配置LCD数据/命令选择引脚。
+
+        config APP_LCD_RST_PIN
+            int "LCD RESET GPIO"
+            range -1 48
+            default 11
+            help
+                配置LCD复位引脚。
+
+        config APP_LCD_CS_PIN
+            int "LCD CS GPIO"
+            range -1 48
+            default 9
+            help
+                配置LCD片选引脚。
+
+        config APP_LCD_BL_PIN
+            int "LCD backlight GPIO"
+            range -1 48
+            default 12
+            help
+                配置LCD背光控制引脚，若背光直连可设为-1。
+
+        config APP_LCD_BL_ON_LEVEL
+            int "LCD backlight active level"
+            range 0 1
+            default 1
+            help
+                配置背光有效电平。
+
+        config APP_LCD_RGB_ORDER_BGR
+            bool "Use BGR color order"
+            default y
+            help
+                ILI9488模组通常使用BGR顺序，若颜色异常可关闭此项。
+
+        config APP_LCD_MIRROR_X
+            bool "Mirror X"
+            default n
+            help
+                配置显示X方向镜像。
+
+        config APP_LCD_MIRROR_Y
+            bool "Mirror Y"
+            default n
+            help
+                配置显示Y方向镜像。
+
+        config APP_LCD_SWAP_XY
+            bool "Swap X/Y"
+            default y
+            help
+                配置显示X/Y交换，用于不同安装方向。
+
+    endmenu
+
+    menu "Touch Configuration"
+
+        config APP_TOUCH_I2C_PORT
+            int "Touch I2C port"
+            range 0 1
+            default 0
+            help
+                配置 FT6336 触摸使用的 I2C 控制器。
+
+        config APP_TOUCH_I2C_FREQ_HZ
+            int "Touch I2C frequency (Hz)"
+            range 10000 1000000
+            default 400000
+            help
+                配置 FT6336 触摸 I2C 时钟频率。
+
+        config APP_TOUCH_I2C_ADDR
+            int "Touch I2C address"
+            range 8 119
+            default 56
+            help
+                FT6336 的 7bit I2C 地址，默认 0x38。
+
+        config APP_TOUCH_I2C_SDA_PIN
+            int "Touch SDA GPIO"
+            range -1 48
+            default 40
+            help
+                触摸 I2C SDA 引脚。当前按确认接线使用 GPIO40。
+
+        config APP_TOUCH_I2C_SCL_PIN
+            int "Touch SCL GPIO"
+            range -1 48
+            default 38
+            help
+                触摸 I2C SCL 引脚。当前按确认接线使用 GPIO38。
+
+        config APP_TOUCH_INT_PIN
+            int "Touch INT GPIO"
+            range -1 48
+            default 39
+            help
+                FT6336 中断引脚。当前按确认接线使用 GPIO39。
+
+        config APP_TOUCH_RST_PIN
+            int "Touch RESET GPIO"
+            range -1 48
+            default 37
+            help
+                FT6336 复位引脚。当前按确认接线使用 GPIO37。
+
+        config APP_TOUCH_SWAP_XY
+            bool "Swap touch X/Y"
+            default y
+            help
+                交换触摸 X/Y 坐标，适配 LCD 原始坐标方向与横屏显示方向的差异。
+
+        config APP_TOUCH_MIRROR_X
+            bool "Mirror touch X"
+            default y
+            help
+                触摸坐标 X 方向镜像，默认按当前横屏安装方向使触摸与显示一致。
+
+        config APP_TOUCH_MIRROR_Y
+            bool "Mirror touch Y"
+            default n
+            help
+                触摸坐标 Y 方向镜像，默认按当前横屏安装方向使触摸与显示一致。
 
     endmenu
 

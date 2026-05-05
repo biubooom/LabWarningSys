@@ -159,6 +159,13 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+/**
+  * @brief  FreeRTOS任务栈溢出钩子函数
+  * @param  xTask: 发生栈溢出的任务句柄
+  * @param  pcTaskName: 发生栈溢出的任务名称
+  * @note   一旦进入该钩子，系统会关闭中断并停在死循环中等待排查
+  * @retval 无
+  */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
   (void)xTask;
@@ -170,6 +177,12 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
   }
 }
 
+/**
+  * @brief  FreeRTOS内存分配失败钩子函数
+  * @param  无
+  * @note   当动态内存申请失败时进入该函数，系统会关闭中断并停机
+  * @retval 无
+  */
 void vApplicationMallocFailedHook(void)
 {
   taskDISABLE_INTERRUPTS();

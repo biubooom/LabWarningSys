@@ -6,12 +6,15 @@ extern "C" {
 #endif
 
 #include "main.h"
+#include "Onewire.h"
 
 typedef enum
 {
     DS18B20_OK = 0,
     DS18B20_ERROR
 } DS18B20_Status_t;
+
+#define DS18B20_ROM_CODE_SIZE ONEWIRE_ROM_CODE_SIZE
 
 /**
   * @brief  初始化DS18B20驱动
@@ -28,6 +31,10 @@ DS18B20_Status_t DS18B20_Init(void);
   *         DS18B20_ERROR: 读取失败
   */
 DS18B20_Status_t DS18B20_ReadTemperature(float *Temperature);
+
+DS18B20_Status_t DS18B20_SearchRomCodes(uint8_t (*RomCodes)[DS18B20_ROM_CODE_SIZE], uint8_t MaxDevices, uint8_t *FoundDevices);
+
+DS18B20_Status_t DS18B20_ReadTemperatureByRom(const uint8_t RomCode[DS18B20_ROM_CODE_SIZE], float *Temperature);
 
 #ifdef __cplusplus
 }
