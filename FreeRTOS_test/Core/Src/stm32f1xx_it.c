@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "start_task.h"
 
 /* USER CODE END Includes */
 
@@ -50,7 +51,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-//声明xPortSysTickHandler函数，该函数由FreeRTOS提供，用于处理SysTick中断
+/* 声明xPortSysTickHandler函数，该函数由FreeRTOS提供，用于处理SysTick中断 */
 extern void xPortSysTickHandler( void ); 
 /* USER CODE END PFP */
 
@@ -61,7 +62,6 @@ extern void xPortSysTickHandler( void );
 
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_adc1;
-extern UART_HandleTypeDef huart1;
 extern TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN EV */
@@ -200,6 +200,22 @@ void DMA1_Channel1_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+
+  /* USER CODE END EXTI9_5_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(G1_DET_Pin);
+  HAL_GPIO_EXTI_IRQHandler(G2_DET_Pin);
+  HAL_GPIO_EXTI_IRQHandler(G3_DET_Pin);
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM4 global interrupt.
   */
 void TIM4_IRQHandler(void)
@@ -213,20 +229,17 @@ void TIM4_IRQHandler(void)
   /* USER CODE END TIM4_IRQn 1 */
 }
 
-/**
-  * @brief This function handles USART1 global interrupt.
-  */
-void USART1_IRQHandler(void)
-{
-  /* USER CODE BEGIN USART1_IRQn 0 */
-
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
-
-  /* USER CODE END USART1_IRQn 1 */
-}
-
 /* USER CODE BEGIN 1 */
+
+/**
+  * @brief  GPIO外部中断回调函数
+  * @param  GPIO_Pin: 触发中断的GPIO引脚号
+  * @note   当前仅将DET插拔事件转交给传感器检测模块处理，不在此处做耗时操作
+  * @retval 无
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  SensorDetect_HandleExti(GPIO_Pin);
+}
 
 /* USER CODE END 1 */

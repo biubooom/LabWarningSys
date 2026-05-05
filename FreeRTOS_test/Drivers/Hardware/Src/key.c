@@ -6,10 +6,13 @@ static uint8_t key_up = 1U;
 static uint32_t key_tick = 0U;
 
 /**
- * @brief  Scan the keys
- * @param  mode: 0 - scan all keys, 1 - scan specific key
- * @retval The state of the key
- */
+  * @brief  扫描按键状态
+  * @param  mode: 扫描模式，0表示普通扫描，非0表示重新允许按键触发
+  * @note   当前仅扫描Key0和Key1，包含简单消抖和单次触发锁存逻辑
+  * @retval KEY0_PRESS: Key0按下
+  *         KEY1_PRESS: Key1按下
+  *         KEY_NONE: 无按键按下
+  */
 uint8_t Key_Scan(uint8_t mode)
 {
     uint8_t key_pressed = 0U;
@@ -21,9 +24,7 @@ uint8_t Key_Scan(uint8_t mode)
 
     key_pressed = (uint8_t)(
         (HAL_GPIO_ReadPin(Key0_GPIO_Port, Key0_Pin) == GPIO_PIN_RESET) ||
-        (HAL_GPIO_ReadPin(Key1_GPIO_Port, Key1_Pin) == GPIO_PIN_RESET) ||
-        (HAL_GPIO_ReadPin(Key2_GPIO_Port, Key2_Pin) == GPIO_PIN_RESET) ||
-        (HAL_GPIO_ReadPin(Key3_GPIO_Port, Key3_Pin) == GPIO_PIN_RESET));
+        (HAL_GPIO_ReadPin(Key1_GPIO_Port, Key1_Pin) == GPIO_PIN_RESET));
 
     if ((key_up == 1U) && (key_pressed != 0U))
     {
@@ -43,16 +44,6 @@ uint8_t Key_Scan(uint8_t mode)
         if (HAL_GPIO_ReadPin(Key1_GPIO_Port, Key1_Pin) == GPIO_PIN_RESET)
         {
             return KEY1_PRESS;
-        }
-
-        if (HAL_GPIO_ReadPin(Key2_GPIO_Port, Key2_Pin) == GPIO_PIN_RESET)
-        {
-            return KEY2_PRESS;
-        }
-
-        if (HAL_GPIO_ReadPin(Key3_GPIO_Port, Key3_Pin) == GPIO_PIN_RESET)
-        {
-            return KEY3_PRESS;
         }
     }
     else if (key_pressed == 0U)

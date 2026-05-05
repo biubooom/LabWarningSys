@@ -13,6 +13,8 @@ typedef enum
     ONEWIRE_ERROR
 } Onewire_Status_t;
 
+#define ONEWIRE_ROM_CODE_SIZE 8U
+
 /**
   * @brief  初始化单总线驱动
   * @param  无
@@ -84,6 +86,8 @@ void Onewire_SkipRom(void);
   * @retval 无
   */
 void Onewire_MatchRom(const uint8_t RomCode[8]);
+
+Onewire_Status_t Onewire_SearchRomCodes(uint8_t (*RomCodes)[ONEWIRE_ROM_CODE_SIZE], uint8_t MaxDevices, uint8_t *FoundDevices);
 
 /**
   * @brief  计算Dallas/Maxim CRC8

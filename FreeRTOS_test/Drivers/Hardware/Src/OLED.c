@@ -90,6 +90,7 @@ static void OLED_ExitCritical(void)
 /**
   * @brief  初始化OLED所需GPIO
   * @param  无
+  * @note   OLED使用软件I2C驱动，GPIO配置为开漏输出并保持总线空闲高电平
   * @retval 无
   */
 static void OLED_I2C_Init(void)
@@ -113,6 +114,7 @@ static void OLED_I2C_Init(void)
 /**
   * @brief  软件I2C起始信号
   * @param  无
+  * @note   按I2C时序先在SCL高电平期间将SDA由高拉低
   * @retval 无
   */
 static void OLED_I2C_Start(void)
@@ -126,6 +128,7 @@ static void OLED_I2C_Start(void)
 /**
   * @brief  软件I2C停止信号
   * @param  无
+  * @note   按I2C时序先释放SCL，再将SDA由低拉高结束传输
   * @retval 无
   */
 static void OLED_I2C_Stop(void)
@@ -138,6 +141,7 @@ static void OLED_I2C_Stop(void)
 /**
   * @brief  软件I2C发送一个字节
   * @param  Byte: 要发送的字节
+  * @note   当前实现未单独读取ACK，发送完成后补一个时钟脉冲继续通信
   * @retval 无
   */
 static void OLED_I2C_SendByte(uint8_t Byte)
@@ -158,6 +162,7 @@ static void OLED_I2C_SendByte(uint8_t Byte)
 /**
   * @brief  向OLED写入命令
   * @param  Command: 要写入的命令
+  * @note   通过软件I2C发送控制字节0x00，表示后续为命令流
   * @retval 无
   */
 static void OLED_WriteCommand(uint8_t Command)
@@ -174,6 +179,7 @@ static void OLED_WriteCommand(uint8_t Command)
 /**
   * @brief  向OLED写入数据
   * @param  Data: 要写入的数据
+  * @note   通过软件I2C发送控制字节0x40，表示后续为显存数据
   * @retval 无
   */
 static void OLED_WriteData(uint8_t Data)
@@ -191,6 +197,7 @@ static void OLED_WriteData(uint8_t Data)
   * @brief  设置OLED显存光标位置
   * @param  Y: 页地址，范围0~7
   * @param  X: 列地址，范围0~127
+  * @note   SSD1306按页寻址，字符显示函数会基于该接口写入字模
   * @retval 无
   */
 static void OLED_SetCursor(uint8_t Y, uint8_t X)
@@ -203,6 +210,7 @@ static void OLED_SetCursor(uint8_t Y, uint8_t X)
 /**
   * @brief  初始化OLED显示屏
   * @param  无
+  * @note   完成互斥资源创建、GPIO初始化和控制器寄存器配置，成功后自动清屏
   * @retval OLED_OK: 初始化成功
   *         OLED_ERROR: 初始化失败
   */
@@ -252,6 +260,7 @@ OLED_Status_t OLED_Init(void)
 /**
   * @brief  清空OLED显示内容
   * @param  无
+  * @note   按8页逐列写0，清除整块显存内容
   * @retval 无
   */
 void OLED_Clear(void)
@@ -276,6 +285,7 @@ void OLED_Clear(void)
   * @param  Line: 行号，范围1~4
   * @param  Column: 列号，范围1~16
   * @param  Char: 要显示的字符
+  * @note   当前字模使用8x16点阵，因此每行字符占用2页显存
   * @retval 无
   */
 void OLED_ShowChar(uint8_t Line, uint8_t Column, char Char)
@@ -302,6 +312,7 @@ void OLED_ShowChar(uint8_t Line, uint8_t Column, char Char)
   * @param  Line: 起始行号，范围1~4
   * @param  Column: 起始列号，范围1~16
   * @param  String: 要显示的字符串
+  * @note   字符串会从指定位置连续输出，不自动换行
   * @retval 无
   */
 void OLED_ShowString(uint8_t Line, uint8_t Column, const char *String)
@@ -334,6 +345,7 @@ void OLED_ShowString(uint8_t Line, uint8_t Column, const char *String)
   * @brief  计算整数次幂
   * @param  X: 底数
   * @param  Y: 指数
+  * @note   仅供数字显示函数做位权拆分使用
   * @retval X的Y次幂
   */
 static uint32_t OLED_Pow(uint32_t X, uint32_t Y)
@@ -354,6 +366,7 @@ static uint32_t OLED_Pow(uint32_t X, uint32_t Y)
   * @param  Column: 起始列号，范围1~16
   * @param  Number: 要显示的数值
   * @param  Length: 显示长度
+  * @note   按固定长度输出，高位不足时显示0
   * @retval 无
   */
 void OLED_ShowNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length)
@@ -372,6 +385,7 @@ void OLED_ShowNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length)
   * @param  Column: 起始列号，范围1~16
   * @param  Number: 要显示的数值
   * @param  Length: 显示长度
+  * @note   会在数值前额外显示符号位，因此实际占用字符数为Length+1
   * @retval 无
   */
 void OLED_ShowSignedNum(uint8_t Line, uint8_t Column, int32_t Number, uint8_t Length)
@@ -402,6 +416,7 @@ void OLED_ShowSignedNum(uint8_t Line, uint8_t Column, int32_t Number, uint8_t Le
   * @param  Column: 起始列号，范围1~16
   * @param  Number: 要显示的数值
   * @param  Length: 显示长度
+  * @note   大于9的数位按大写A~F显示
   * @retval 无
   */
 void OLED_ShowHexNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length)
@@ -429,6 +444,7 @@ void OLED_ShowHexNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Leng
   * @param  Column: 起始列号，范围1~16
   * @param  Number: 要显示的数值
   * @param  Length: 显示长度
+  * @note   按固定长度输出，高位不足时显示0
   * @retval 无
   */
 void OLED_ShowBinNum(uint8_t Line, uint8_t Column, uint32_t Number, uint8_t Length)

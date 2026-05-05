@@ -5,12 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "mqtt_client.h"
+#include "cJSON.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "cJSON.h"
 #include "mbedtls/base64.h"
 #include "mbedtls/md.h"
+#include "mqtt_client.h"
 
 #include "app_config.h"
 #include "onenet_mqtt.h"
@@ -20,19 +20,20 @@ static const char *TAG = "onenet_mqtt";
 static esp_mqtt_client_handle_t s_mqtt_client;
 static char s_topic_property_post[128];
 static char s_topic_property_post_reply[128];
-static char s_topic_property_set[128];
-static char s_topic_property_set_reply[128];
 static char s_onenet_token[256];
-static onenet_telemetry_t s_last_telemetry = {
-    .temperature = 25.0f,
-    .humidity = 50.0f,
-    .light = 60.0f,
-    .smoke = 10.0f,
-    .alarm = false,
+static onenet_snapshot_t s_last_snapshot = {
+    .groups = {
+        {.online = false, .temperature = 0.0f, .humidity = 0.0f, .light = 0.0f, .smoke = 0.0f, .alarm = false},
+        {.online = false, .temperature = 0.0f, .humidity = 0.0f, .light = 0.0f, .smoke = 0.0f, .alarm = false},
+        {.online = false, .temperature = 0.0f, .humidity = 0.0f, .light = 0.0f, .smoke = 0.0f, .alarm = false},
+        {.online = false, .temperature = 0.0f, .humidity = 0.0f, .light = 0.0f, .smoke = 0.0f, .alarm = false},
+    },
+    .link_online = false,
+    .system_alarm = false,
 };
 
 /**
-  * @brief  按平台步长0.1对浮点数进行量化，避免上传时出现浮点精度误差
+  * @brief  按平台步长0.1对浮点数进行量化
   * @param  value: 原始浮点值
   * @retval 量化后的浮点值
   */
@@ -94,7 +95,7 @@ static void url_encode(const char *src, char *dst, size_t dst_size)
             break;
         }
 
-        snprintf(&dst[out], dst_size - out, "%%%02X", (unsigned char)src[i]);
+        (void)snprintf(&dst[out], dst_size - out, "%%%02X", (unsigned char)src[i]);
         out += 3;
     }
 
@@ -121,7 +122,7 @@ static esp_err_t build_onenet_token(char *token, size_t token_size)
     char sign_encoded[192];
     int ret;
 
-    snprintf(resource, sizeof(resource), "products/%s/devices/%s", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    (void)snprintf(resource, sizeof(resource), "products/%s/devices/%s", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
     url_encode(resource, resource_encoded, sizeof(resource_encoded));
 
     ret = mbedtls_base64_decode(key_bin, sizeof(key_bin), &key_bin_len,
@@ -131,8 +132,8 @@ static esp_err_t build_onenet_token(char *token, size_t token_size)
         return ESP_FAIL;
     }
 
-    snprintf(signature_src, sizeof(signature_src), "%s\n%s\n%s\n%s",
-             ONENET_TOKEN_EXPIRY, ONENET_METHOD, resource, ONENET_VERSION);
+    (void)snprintf(signature_src, sizeof(signature_src), "%s\n%s\n%s\n%s",
+                   ONENET_TOKEN_EXPIRY, ONENET_METHOD, resource, ONENET_VERSION);
 
     const mbedtls_md_info_t *md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
     if (md_info == NULL) {
@@ -158,9 +159,9 @@ static esp_err_t build_onenet_token(char *token, size_t token_size)
 
     url_encode((const char *)sign_b64, sign_encoded, sizeof(sign_encoded));
 
-    snprintf(token, token_size,
-             "version=%s&res=%s&et=%s&method=%s&sign=%s",
-             ONENET_VERSION, resource_encoded, ONENET_TOKEN_EXPIRY, ONENET_METHOD, sign_encoded);
+    (void)snprintf(token, token_size,
+                   "version=%s&res=%s&et=%s&method=%s&sign=%s",
+                   ONENET_VERSION, resource_encoded, ONENET_TOKEN_EXPIRY, ONENET_METHOD, sign_encoded);
     return ESP_OK;
 }
 
@@ -171,63 +172,142 @@ static esp_err_t build_onenet_token(char *token, size_t token_size)
   */
 static void build_topics(void)
 {
-    snprintf(s_topic_property_post, sizeof(s_topic_property_post),
-             "$sys/%s/%s/thing/property/post", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
-    snprintf(s_topic_property_post_reply, sizeof(s_topic_property_post_reply),
-             "$sys/%s/%s/thing/property/post/reply", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
-    snprintf(s_topic_property_set, sizeof(s_topic_property_set),
-             "$sys/%s/%s/thing/property/set", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
-    snprintf(s_topic_property_set_reply, sizeof(s_topic_property_set_reply),
-             "$sys/%s/%s/thing/property/set_reply", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    (void)snprintf(s_topic_property_post, sizeof(s_topic_property_post),
+                   "$sys/%s/%s/thing/property/post", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+    (void)snprintf(s_topic_property_post_reply, sizeof(s_topic_property_post_reply),
+                   "$sys/%s/%s/thing/property/post/reply", ONENET_PRODUCT_ID, ONENET_DEVICE_NAME);
+}
+
+static bool add_bool_property(cJSON *params, const char *key, bool value)
+{
+    cJSON *property;
+
+    if ((params == NULL) || (key == NULL))
+    {
+        return false;
+    }
+
+    property = cJSON_AddObjectToObject(params, key);
+    if (property == NULL)
+    {
+        return false;
+    }
+
+    cJSON_AddBoolToObject(property, "value", value);
+    return true;
+}
+
+static bool add_number_property(cJSON *params, const char *key, float value)
+{
+    cJSON *property;
+
+    if ((params == NULL) || (key == NULL))
+    {
+        return false;
+    }
+
+    property = cJSON_AddObjectToObject(params, key);
+    if (property == NULL)
+    {
+        return false;
+    }
+
+    return add_fixed_1_decimal_number(property, "value", value);
 }
 
 /**
-  * @brief  按OneJSON格式发布属性上报消息
-  * @param  telemetry: 待上报的遥测数据
+  * @brief  向params中添加单组传感器扁平属性
+  * @param  params: OneNET params对象
+  * @param  group_name: 当前组名前缀，例如g1
+  * @param  group: 当前组快照
+  * @retval true: 添加成功
+  *         false: 添加失败
+  */
+static bool add_group_payload(cJSON *params, const char *group_name, const onenet_group_telemetry_t *group)
+{
+    char key[32];
+
+    if ((params == NULL) || (group_name == NULL) || (group == NULL))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_online", group_name);
+    if (!add_bool_property(params, key, group->online))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_temperature", group_name);
+    if (!add_number_property(params, key, group->temperature))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_humidity", group_name);
+    if (!add_number_property(params, key, group->humidity))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_light", group_name);
+    if (!add_number_property(params, key, group->light))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_smoke", group_name);
+    if (!add_number_property(params, key, group->smoke))
+    {
+        return false;
+    }
+
+    (void)snprintf(key, sizeof(key), "%s_alarm", group_name);
+    if (!add_bool_property(params, key, group->alarm))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+  * @brief  按OneJSON格式发布四组属性上报消息
+  * @param  snapshot: 待上报的四组快照
   * @retval ESP_OK: 发布成功
   *         ESP_FAIL: 发布失败
   */
-static esp_err_t publish_property_report(const onenet_telemetry_t *telemetry)
+static esp_err_t publish_property_report(const onenet_snapshot_t *snapshot)
 {
+    static const char *const group_names[SENSOR_GROUP_COUNT] = {"g1", "g2", "g3", "g4"};
     cJSON *root = cJSON_CreateObject();
     cJSON *params = cJSON_AddObjectToObject(root, "params");
+    cJSON *link_online;
+    cJSON *system_alarm;
     char *payload = NULL;
     esp_err_t ret = ESP_FAIL;
-    float temperature_value;
-    float humidity_value;
-    float light_value;
-    float smoke_value;
 
-    if (root == NULL || params == NULL) {
+    if ((root == NULL) || (params == NULL) || (snapshot == NULL)) {
         goto cleanup;
     }
-
-    temperature_value = quantize_step_0_1(telemetry->temperature);
-    humidity_value = quantize_step_0_1(telemetry->humidity);
-    light_value = quantize_step_0_1(telemetry->light);
-    smoke_value = quantize_step_0_1(telemetry->smoke);
 
     cJSON_AddStringToObject(root, "id", "1");
     cJSON_AddStringToObject(root, "version", "1.0");
 
-    cJSON *temperature = cJSON_AddObjectToObject(params, "temperature");
-    cJSON *humidity = cJSON_AddObjectToObject(params, "humidity");
-    cJSON *light = cJSON_AddObjectToObject(params, "light");
-    cJSON *smoke = cJSON_AddObjectToObject(params, "smoke");
-    cJSON *alarm = cJSON_AddObjectToObject(params, "alarm");
-
-    if (temperature == NULL || humidity == NULL || light == NULL || smoke == NULL || alarm == NULL) {
+    link_online = cJSON_AddObjectToObject(params, "link_online");
+    system_alarm = cJSON_AddObjectToObject(params, "system_alarm");
+    if ((link_online == NULL) || (system_alarm == NULL)) {
         goto cleanup;
     }
 
-    if (!add_fixed_1_decimal_number(temperature, "value", temperature_value) ||
-        !add_fixed_1_decimal_number(humidity, "value", humidity_value) ||
-        !add_fixed_1_decimal_number(light, "value", light_value) ||
-        !add_fixed_1_decimal_number(smoke, "value", smoke_value))
-    {
-        goto cleanup;
+    cJSON_AddBoolToObject(link_online, "value", snapshot->link_online);
+    cJSON_AddBoolToObject(system_alarm, "value", snapshot->system_alarm);
+
+    for (uint32_t i = 0; i < SENSOR_GROUP_COUNT; ++i) {
+        if (!add_group_payload(params, group_names[i], &snapshot->groups[i])) {
+            goto cleanup;
+        }
     }
-    cJSON_AddBoolToObject(alarm, "value", telemetry->alarm);
 
     payload = cJSON_PrintUnformatted(root);
     if (payload == NULL) {
@@ -235,7 +315,7 @@ static esp_err_t publish_property_report(const onenet_telemetry_t *telemetry)
     }
 
     if (s_mqtt_client != NULL) {
-        esp_mqtt_client_publish(s_mqtt_client, s_topic_property_post, payload, 0, 0, 0);
+        (void)esp_mqtt_client_publish(s_mqtt_client, s_topic_property_post, payload, 0, 0, 0);
         ESP_LOGI(TAG, "property report: %s", payload);
         ret = ESP_OK;
     }
@@ -244,47 +324,6 @@ cleanup:
     cJSON_free(payload);
     cJSON_Delete(root);
     return ret;
-}
-
-/**
-  * @brief  处理平台下发的属性设置消息
-  * @param  data: 下发消息数据
-  * @param  data_len: 数据长度
-  * @retval 无
-  */
-static void handle_property_set(const char *data, int data_len)
-{
-    cJSON *root = cJSON_ParseWithLength(data, data_len);
-    if (root == NULL) {
-        ESP_LOGW(TAG, "invalid property set payload");
-        return;
-    }
-
-    cJSON *id = cJSON_GetObjectItem(root, "id");
-    cJSON *params = cJSON_GetObjectItem(root, "params");
-    if (cJSON_IsObject(params)) {
-        cJSON *alarm = cJSON_GetObjectItem(params, "alarm");
-        if (cJSON_IsBool(alarm)) {
-            s_last_telemetry.alarm = cJSON_IsTrue(alarm);
-            ESP_LOGI(TAG, "alarm updated from cloud: %d", s_last_telemetry.alarm);
-        }
-    }
-
-    cJSON *reply = cJSON_CreateObject();
-    if (reply != NULL) {
-        char *reply_payload = NULL;
-        cJSON_AddStringToObject(reply, "id", cJSON_IsString(id) ? id->valuestring : "1");
-        cJSON_AddNumberToObject(reply, "code", 200);
-        cJSON_AddStringToObject(reply, "msg", "success");
-        reply_payload = cJSON_PrintUnformatted(reply);
-        if (reply_payload != NULL && s_mqtt_client != NULL) {
-            esp_mqtt_client_publish(s_mqtt_client, s_topic_property_set_reply, reply_payload, 0, 0, 0);
-            cJSON_free(reply_payload);
-        }
-        cJSON_Delete(reply);
-    }
-
-    cJSON_Delete(root);
 }
 
 /**
@@ -299,20 +338,18 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 {
     esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
 
+    (void)handler_args;
+    (void)base;
+
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "mqtt connected");
-        esp_mqtt_client_subscribe(event->client, s_topic_property_post_reply, 0);
-        esp_mqtt_client_subscribe(event->client, s_topic_property_set, 0);
-        publish_property_report(&s_last_telemetry);
+        (void)esp_mqtt_client_subscribe(event->client, s_topic_property_post_reply, 0);
+        (void)publish_property_report(&s_last_snapshot);
         break;
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "mqtt topic=%.*s", event->topic_len, event->topic);
         ESP_LOGI(TAG, "mqtt data=%.*s", event->data_len, event->data);
-        if ((int)strlen(s_topic_property_set) == event->topic_len &&
-            strncmp(event->topic, s_topic_property_set, event->topic_len) == 0) {
-            handle_property_set(event->data, event->data_len);
-        }
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "mqtt disconnected");
@@ -333,7 +370,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
   */
 esp_err_t onenet_mqtt_start(void)
 {
-    /* 连接前先准备Topic和鉴权Token。 */
     build_topics();
     ESP_ERROR_CHECK(build_onenet_token(s_onenet_token, sizeof(s_onenet_token)));
 
@@ -349,24 +385,23 @@ esp_err_t onenet_mqtt_start(void)
         return ESP_FAIL;
     }
 
-    esp_mqtt_client_register_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    (void)esp_mqtt_client_register_event(s_mqtt_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     return esp_mqtt_client_start(s_mqtt_client);
 }
 
 /**
-  * @brief  上报一组遥测数据到OneNET
-  * @param  telemetry: 待上报的遥测数据
+  * @brief  上报四组遥测数据到OneNET
+  * @param  snapshot: 待上报的四组快照
   * @retval ESP_OK: 上报成功
   *         ESP_ERR_INVALID_ARG: 参数无效
   *         ESP_FAIL: 上报失败
   */
-esp_err_t onenet_mqtt_publish_telemetry(const onenet_telemetry_t *telemetry)
+esp_err_t onenet_mqtt_publish_snapshot(const onenet_snapshot_t *snapshot)
 {
-    if (telemetry == NULL) {
+    if (snapshot == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* 保存最近一次上报值，便于重连后立即补发当前状态。 */
-    s_last_telemetry = *telemetry;
-    return publish_property_report(&s_last_telemetry);
+    s_last_snapshot = *snapshot;
+    return publish_property_report(&s_last_snapshot);
 }
