@@ -60,3 +60,21 @@ Thumbs.db
 .idea/
 *.sublime-project
 *.sublime-workspace
+
+# Local assistant / workspace notes
+CLAUDE.md
+
+# ESP32 local tooling and temp files
+ESP32S3/.cache/
+ESP32S3/.devcontainer/
+ESP32S3/tmp_msp3520.zip
+ESP32S3/tmp_msp3520/
+
+# Local debug logs
+FreeRTOS_test/gdbClient_log.txt
+FreeRTOS_test/stlinkgdbserver_log.txt
+
+# Local reference / scratch directories
+Kmeans/
+mimiclaw/
+资料/
