@@ -34,7 +34,11 @@ DS18B20_Status_t DS18B20_ReadTemperature(float *Temperature);
 
 DS18B20_Status_t DS18B20_SearchRomCodes(uint8_t (*RomCodes)[DS18B20_ROM_CODE_SIZE], uint8_t MaxDevices, uint8_t *FoundDevices);
 
+DS18B20_Status_t DS18B20_StartAllConversion(void);
+
 DS18B20_Status_t DS18B20_ReadTemperatureByRom(const uint8_t RomCode[DS18B20_ROM_CODE_SIZE], float *Temperature);
+
+DS18B20_Status_t DS18B20_ReadTemperatureByRomWithoutConvert(const uint8_t RomCode[DS18B20_ROM_CODE_SIZE], float *Temperature);
 
 #ifdef __cplusplus
 }

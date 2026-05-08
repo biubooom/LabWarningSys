@@ -1,0 +1,13 @@
+{
+  "name": "labIngest",
+  "version": "1.0.0",
+  "description": "写入实验室预警系统快照与历史记录",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.4.0"
+  }
+}

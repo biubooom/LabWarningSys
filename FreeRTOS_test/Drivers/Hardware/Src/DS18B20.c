@@ -11,6 +11,8 @@
 #define DS18B20_CMD_READ_SCRATCHPAD 0xBEU
 #define DS18B20_SCRATCHPAD_SIZE     9U
 
+DS18B20_Status_t DS18B20_StartAllConversion(void);
+
 /**
   * @brief  读取指定DS18B20的Scratchpad数据
   * @param  rom_code: 目标器件ROM地址，传NULL时广播到总线单设备
@@ -19,7 +21,7 @@
   * @retval DS18B20_OK: 读取成功
   *         DS18B20_ERROR: 读取失败
   */
-static DS18B20_Status_t DS18B20_ReadScratchpad(const uint8_t *rom_code, uint8_t scratchpad[DS18B20_SCRATCHPAD_SIZE])
+static DS18B20_Status_t DS18B20_ReadScratchpadOnly(const uint8_t *rom_code, uint8_t scratchpad[DS18B20_SCRATCHPAD_SIZE])
 {
     uint8_t i;
 
@@ -30,33 +32,6 @@ static DS18B20_Status_t DS18B20_ReadScratchpad(const uint8_t *rom_code, uint8_t 
 
     Onewire_Lock();
 
-    if (Onewire_Reset() == 0U)
-    {
-        Onewire_Unlock();
-        return DS18B20_ERROR;
-    }
-
-    /* rom_code 为空时表示广播到总线上全部器件，否则只匹配指定探头 */
-    if (rom_code == NULL)
-    {
-        Onewire_WriteByte(DS18B20_CMD_SKIP_ROM);
-    }
-    else
-    {
-        Onewire_WriteByte(DS18B20_CMD_MATCH_ROM);
-        for (i = 0U; i < DS18B20_ROM_CODE_SIZE; i++)
-        {
-            Onewire_WriteByte(rom_code[i]);
-        }
-    }
-
-    /* 温度转换较慢，发起后先释放总线给其他任务 */
-    Onewire_WriteByte(DS18B20_CMD_CONVERT_T);
-    Onewire_Unlock();
-
-    vTaskDelay(pdMS_TO_TICKS(750U));
-
-    Onewire_Lock();
     if (Onewire_Reset() == 0U)
     {
         Onewire_Unlock();
@@ -89,6 +64,17 @@ static DS18B20_Status_t DS18B20_ReadScratchpad(const uint8_t *rom_code, uint8_t 
     }
 
     return DS18B20_OK;
+}
+
+static DS18B20_Status_t DS18B20_ReadScratchpad(const uint8_t *rom_code, uint8_t scratchpad[DS18B20_SCRATCHPAD_SIZE])
+{
+    if (DS18B20_StartAllConversion() != DS18B20_OK)
+    {
+        return DS18B20_ERROR;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(750U));
+    return DS18B20_ReadScratchpadOnly(rom_code, scratchpad);
 }
 
 /**
@@ -160,6 +146,24 @@ DS18B20_Status_t DS18B20_SearchRomCodes(uint8_t (*RomCodes)[DS18B20_ROM_CODE_SIZ
     return (Onewire_SearchRomCodes(RomCodes, MaxDevices, FoundDevices) == ONEWIRE_OK) ? DS18B20_OK : DS18B20_ERROR;
 }
 
+DS18B20_Status_t DS18B20_StartAllConversion(void)
+{
+    Onewire_Lock();
+
+    if (Onewire_Reset() == 0U)
+    {
+        Onewire_Unlock();
+        return DS18B20_ERROR;
+    }
+
+    /* 广播发起一次温度转换，让总线上的全部探头并行测温 */
+    Onewire_WriteByte(DS18B20_CMD_SKIP_ROM);
+    Onewire_WriteByte(DS18B20_CMD_CONVERT_T);
+    Onewire_Unlock();
+
+    return DS18B20_OK;
+}
+
 /**
   * @brief  按ROM地址读取指定DS18B20温度
   * @param  RomCode: 目标器件的8字节ROM地址
@@ -179,6 +183,26 @@ DS18B20_Status_t DS18B20_ReadTemperatureByRom(const uint8_t RomCode[DS18B20_ROM_
     }
 
     if (DS18B20_ReadScratchpad(RomCode, scratchpad) != DS18B20_OK)
+    {
+        return DS18B20_ERROR;
+    }
+
+    raw_temperature = (int16_t)(((uint16_t)scratchpad[1] << 8U) | scratchpad[0]);
+    *Temperature = (float)raw_temperature / 16.0f;
+    return DS18B20_OK;
+}
+
+DS18B20_Status_t DS18B20_ReadTemperatureByRomWithoutConvert(const uint8_t RomCode[DS18B20_ROM_CODE_SIZE], float *Temperature)
+{
+    uint8_t scratchpad[DS18B20_SCRATCHPAD_SIZE];
+    int16_t raw_temperature;
+
+    if ((RomCode == NULL) || (Temperature == NULL))
+    {
+        return DS18B20_ERROR;
+    }
+
+    if (DS18B20_ReadScratchpadOnly(RomCode, scratchpad) != DS18B20_OK)
     {
         return DS18B20_ERROR;
     }

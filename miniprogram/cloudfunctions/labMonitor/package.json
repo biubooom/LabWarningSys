@@ -1,0 +1,13 @@
+{
+  "name": "labMonitor",
+  "version": "1.0.0",
+  "description": "实验室预警系统监控云函数",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.4.0"
+  }
+}

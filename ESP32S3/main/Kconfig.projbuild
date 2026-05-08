@@ -88,16 +88,16 @@ menu "LabWarning Configuration"
         config APP_UART_TX_PIN
             int "UART TX GPIO"
             range -1 48
-            default 42
+            default 41
             help
-                配置ESP32串口TX引脚。当前硬件按 GPIO42 接 STM32 PA10(USART1_RX)。
+                配置ESP32串口TX引脚。当前硬件按 GPIO41 接 STM32 PA10(USART1_RX)。
 
         config APP_UART_RX_PIN
             int "UART RX GPIO"
             range -1 48
-            default 41
+            default 42
             help
-                配置ESP32串口RX引脚。当前硬件按 GPIO41 接 STM32 PA9(USART1_TX)。
+                配置ESP32串口RX引脚。当前硬件按 GPIO42 接 STM32 PA9(USART1_TX)。
 
         config APP_UART_BUFFER_SIZE
             int "UART buffer size"

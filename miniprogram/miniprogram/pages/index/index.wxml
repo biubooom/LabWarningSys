@@ -1,0 +1,77 @@
+<view class="page">
+  <view class="topbar">
+    <view class="topbar__meta">
+      <view class="topbar__hint">实时监控</view>
+      <view class="topbar__time">{{updatedAt}}</view>
+    </view>
+    <view class="topbar__actions">
+      <view class="topbar__action" bindtap="openHistory">历史</view>
+      <view class="topbar__action" bindtap="showAbout">关于</view>
+    </view>
+  </view>
+
+  <view class="status-panel {{systemAlarm ? 'status-panel--alarm' : ''}}">
+    <view class="status-item">
+      <view class="status-item__label">系统状态</view>
+      <view class="status-item__value {{systemAlarm ? 'status-item__value--alarm' : 'status-item__value--normal'}}">
+        {{systemAlarm ? '告警中' : '正常'}}
+      </view>
+    </view>
+    <view class="status-item">
+      <view class="status-item__label">链路状态</view>
+      <view class="status-item__value {{linkOnline ? 'status-item__value--online' : 'status-item__value--offline'}}">
+        {{linkOnline ? 'ONLINE' : 'OFFLINE'}}
+      </view>
+    </view>
+    <view class="status-item status-item--wide">
+      <view class="status-item__label">同步状态</view>
+      <view class="status-item__value">{{loading ? '实时同步中...' : '数据自动刷新中'}}</view>
+    </view>
+  </view>
+
+  <view class="error-card" wx:if="{{errorMessage}}">
+    <view class="error-card__title">数据获取失败</view>
+    <view class="error-card__content">{{errorMessage}}</view>
+  </view>
+
+  <view class="group-list">
+    <view
+      class="group-card {{item.alarm ? 'group-card--alarm' : ''}} {{!item.online ? 'group-card--offline' : ''}}"
+      wx:for="{{groups}}"
+      wx:key="id"
+    >
+      <view class="group-card__header">
+        <view class="group-card__title">{{item.title}}</view>
+        <view class="group-card__badges">
+          <view class="badge {{item.online ? 'badge--online' : 'badge--offline'}}">
+            {{item.online ? 'ONLINE' : 'OFFLINE'}}
+          </view>
+          <view class="badge badge--alarm" wx:if="{{item.alarm}}">ALARM</view>
+        </view>
+      </view>
+
+      <view class="metrics">
+        <view class="metric">
+          <view class="metric__label">温度</view>
+          <view class="metric__value" wx:if="{{item.online}}">{{item.temperature}}<text class="metric__unit">℃</text></view>
+          <view class="metric__value" wx:else>--</view>
+        </view>
+        <view class="metric">
+          <view class="metric__label">湿度</view>
+          <view class="metric__value" wx:if="{{item.online}}">{{item.humidity}}<text class="metric__unit">%RH</text></view>
+          <view class="metric__value" wx:else>--</view>
+        </view>
+        <view class="metric">
+          <view class="metric__label">烟雾</view>
+          <view class="metric__value" wx:if="{{item.online}}">{{item.smoke}}<text class="metric__unit">%</text></view>
+          <view class="metric__value" wx:else>--</view>
+        </view>
+        <view class="metric">
+          <view class="metric__label">光照</view>
+          <view class="metric__value" wx:if="{{item.online}}">{{item.light}}<text class="metric__unit">%</text></view>
+          <view class="metric__value" wx:else>--</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

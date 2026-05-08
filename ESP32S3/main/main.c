@@ -1,5 +1,6 @@
 #include "nvs_flash.h"
 
+#include <inttypes.h>
 #include <string.h>
 
 #include "app_config.h"
@@ -19,7 +20,7 @@ static const char *TAG = "main";
 #define UART_RX_TASK_STACK_SIZE       6144U
 #define UART_RX_TASK_PRIORITY         5U
 #define UART_RX_FRAME_MAX_LEN         2048U
-#define UART_LINK_TIMEOUT_MS          5000U
+#define UART_LINK_TIMEOUT_MS          15000U
 #define CLOUD_REPORT_INTERVAL_MS      2000U
 #define TEMP_ALARM_THRESHOLD_C        50.0f
 #define HUMI_ALARM_THRESHOLD_RH       85.0f
@@ -38,6 +39,11 @@ static sensor_snapshot_t s_runtime_snapshot = {
 };
 static TickType_t s_last_uart_activity_tick;
 static TickType_t s_last_cloud_report_tick;
+static TickType_t s_last_uart_frame_tick;
+static uint32_t s_uart_frame_total;
+static uint32_t s_uart_frame_ok_count;
+static uint32_t s_uart_frame_invalid_count;
+static uint32_t s_uart_frame_overflow_count;
 
 static bool group_alarm_active(const sensor_group_data_t *group)
 {
@@ -219,6 +225,7 @@ static esp_err_t uart_link_init(void)
 static void uart_rx_task(void *arg)
 {
     char frame[UART_RX_FRAME_MAX_LEN];
+    char frame_preview[97];
     size_t frame_len = 0U;
     uint8_t rx_byte = 0U;
 
@@ -236,13 +243,46 @@ static void uart_rx_task(void *arg)
 
             if (rx_byte == '\n') {
                 if (frame_len > 0U) {
+                    TickType_t now = xTaskGetTickCount();
+                    uint32_t frame_interval_ms = (s_last_uart_frame_tick == 0U)
+                        ? 0U
+                        : (uint32_t)pdTICKS_TO_MS(now - s_last_uart_frame_tick);
+
                     frame[frame_len] = '\0';
-                    ESP_LOGI(TAG, "stm32 frame: %s", frame);
+                    s_last_uart_frame_tick = now;
+                    s_uart_frame_total++;
+
+                    (void)snprintf(frame_preview,
+                                   sizeof(frame_preview),
+                                   "%.*s",
+                                   (int)((frame_len < (sizeof(frame_preview) - 1U)) ? frame_len : (sizeof(frame_preview) - 1U)),
+                                   frame);
+
                     if (parse_snapshot_frame(frame, &s_runtime_snapshot)) {
+                        s_uart_frame_ok_count++;
+                        ESP_LOGI(TAG,
+                                 "uart frame ok total=%" PRIu32 " ok=%" PRIu32 " invalid=%" PRIu32
+                                 " overflow=%" PRIu32 " len=%u interval=%" PRIu32 "ms",
+                                 s_uart_frame_total,
+                                 s_uart_frame_ok_count,
+                                 s_uart_frame_invalid_count,
+                                 s_uart_frame_overflow_count,
+                                 (unsigned int)frame_len,
+                                 frame_interval_ms);
                         dashboard_push_snapshot();
                         publish_snapshot_to_onenet(false);
                     } else {
-                        ESP_LOGW(TAG, "invalid stm32 frame: %s", frame);
+                        s_uart_frame_invalid_count++;
+                        ESP_LOGW(TAG,
+                                 "uart frame invalid total=%" PRIu32 " ok=%" PRIu32 " invalid=%" PRIu32
+                                 " overflow=%" PRIu32 " len=%u interval=%" PRIu32 "ms preview=%s",
+                                 s_uart_frame_total,
+                                 s_uart_frame_ok_count,
+                                 s_uart_frame_invalid_count,
+                                 s_uart_frame_overflow_count,
+                                 (unsigned int)frame_len,
+                                 frame_interval_ms,
+                                 frame_preview);
                     }
                     frame_len = 0U;
                 }
@@ -251,7 +291,15 @@ static void uart_rx_task(void *arg)
             } else {
                 frame[sizeof(frame) - 1U] = '\0';
                 frame_len = 0U;
-                ESP_LOGW(TAG, "uart frame overflow, frame dropped (max=%u)", (unsigned int)sizeof(frame));
+                s_uart_frame_overflow_count++;
+                ESP_LOGW(TAG,
+                         "uart frame overflow total=%" PRIu32 " ok=%" PRIu32 " invalid=%" PRIu32
+                         " overflow=%" PRIu32 " max=%u",
+                         s_uart_frame_total,
+                         s_uart_frame_ok_count,
+                         s_uart_frame_invalid_count,
+                         s_uart_frame_overflow_count,
+                         (unsigned int)sizeof(frame));
             }
         }
 
@@ -285,5 +333,6 @@ void app_main(void)
     ESP_ERROR_CHECK(uart_link_init());
     s_last_uart_activity_tick = xTaskGetTickCount();
     s_last_cloud_report_tick = 0;
+    s_last_uart_frame_tick = 0;
     xTaskCreate(uart_rx_task, "uart_rx_task", UART_RX_TASK_STACK_SIZE, NULL, UART_RX_TASK_PRIORITY, NULL);
 }

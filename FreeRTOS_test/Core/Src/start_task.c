@@ -49,16 +49,19 @@ static TaskHandle_t UartTxTaskHandle;
 #define OLED_TASK_PRIORITY          (tskIDLE_PRIORITY + 1)
 #define UART_TX_TASK_NAME           "UART_TX_Task"
 #define UART_TX_TASK_STACK_SIZE     1024U
-#define UART_TX_TASK_PRIORITY       (tskIDLE_PRIORITY + 1)
+#define UART_TX_TASK_PRIORITY       (tskIDLE_PRIORITY + 3)
 
 /* 采样、显示和插拔检测相关时序参数 */
 #define DET_DEBOUNCE_MS             50U      // DET插拔检测消抖时间，单位毫秒
 #define SAMPLE_PERIOD_MS            2000U    // 传感器采样任务运行周期，单位毫秒
-#define UART_TX_PERIOD_MS           1000U    // UART原始数据帧发送周期，单位毫.秒 
+#define UART_TX_PERIOD_MS           2000U    // UART原始数据帧发送周期，单位毫秒
 #define OLED_ROTATE_PERIOD_MS       2000U    // OLED详细信息轮播切换周期，单位毫秒 
 #define DHT22_POWER_ON_DELAY_MS     2000U    // DHT22上电后首次读取前的预热等待时间，单位毫秒 
 #define DHT22_RETRY_COUNT           3U       // DHT22单次采样失败后的最大重试次数 
 #define DHT22_RETRY_DELAY_MS        100U     // DHT22两次重试之间的间隔时间，单位毫秒 
+#define DS18B20_CONVERT_WAIT_MS     800U     // DS18B20并行转换等待时间，单位毫秒
+#define DS18B20_RETRY_COUNT         2U       // DS18B20读取失败后的额外补读次数
+#define DS18B20_RETRY_DELAY_MS      20U      // DS18B20补读前的短暂间隔，单位毫秒
 
 /* ADC基础参数与单总线设备数量上限 */
 #define ADC_CHANNEL_COUNT           8U
@@ -429,6 +432,10 @@ static void SensorDetect_Task(void *pvParameters)
 static void SensorSample_Task(void *pvParameters)
 {
     TickType_t last_wake_time;
+    TickType_t ds18b20_convert_start = 0U;
+    TickType_t ds18b20_elapsed_ticks;
+    TickType_t ds18b20_wait_ticks = pdMS_TO_TICKS(DS18B20_CONVERT_WAIT_MS);
+    uint8_t ds18b20_conversion_started;
 
     (void)pvParameters;
 
@@ -443,6 +450,22 @@ static void SensorSample_Task(void *pvParameters)
     {
         /* 每轮都刷新一次 ROM 绑定，适配热插拔场景 */
         RefreshDs18b20Assignments();
+        ds18b20_conversion_started = 0U;
+
+        for (uint8_t group_index = 0U; group_index < SENSOR_GROUP_COUNT; group_index++)
+        {
+            SensorGroup_t *group = &g_sensor_groups[group_index];
+
+            if ((group->detected != 0U) && (group->initialized != 0U) && (group->rom_valid != 0U))
+            {
+                if (DS18B20_StartAllConversion() == DS18B20_OK)
+                {
+                    ds18b20_convert_start = xTaskGetTickCount();
+                    ds18b20_conversion_started = 1U;
+                }
+                break;
+            }
+        }
 
         for (uint8_t group_index = 0U; group_index < SENSOR_GROUP_COUNT; group_index++)
         {
@@ -482,8 +505,51 @@ static void SensorSample_Task(void *pvParameters)
                 group->dht22_online = 0U;
             }
 
-            /* 温度按 ROM 定向读取，避免四个 DS18B20 共线时串组 */
-            if ((group->rom_valid != 0U) && (DS18B20_ReadTemperatureByRom(group->rom_code, &temperature) == DS18B20_OK))
+        }
+
+        if (ds18b20_conversion_started != 0U)
+        {
+            ds18b20_elapsed_ticks = xTaskGetTickCount() - ds18b20_convert_start;
+            if (ds18b20_elapsed_ticks < ds18b20_wait_ticks)
+            {
+                vTaskDelay(ds18b20_wait_ticks - ds18b20_elapsed_ticks);
+            }
+        }
+
+        for (uint8_t group_index = 0U; group_index < SENSOR_GROUP_COUNT; group_index++)
+        {
+            SensorGroup_t *group = &g_sensor_groups[group_index];
+            float temperature;
+            uint8_t ds18b20_ok = 0U;
+
+            if ((group->detected == 0U) || (group->initialized == 0U))
+            {
+                continue;
+            }
+
+            /* 温度按 ROM 定向读取，转换阶段已提前并行发起，避免四个探头串行各等 750ms */
+            if ((ds18b20_conversion_started != 0U) &&
+                (group->rom_valid != 0U) &&
+                (DS18B20_ReadTemperatureByRomWithoutConvert(group->rom_code, &temperature) == DS18B20_OK))
+            {
+                ds18b20_ok = 1U;
+            }
+
+            for (uint8_t retry = 0U; (ds18b20_ok == 0U) && (retry < DS18B20_RETRY_COUNT); retry++)
+            {
+                if (group->rom_valid == 0U)
+                {
+                    break;
+                }
+
+                vTaskDelay(pdMS_TO_TICKS(DS18B20_RETRY_DELAY_MS));
+                if (DS18B20_ReadTemperatureByRom(group->rom_code, &temperature) == DS18B20_OK)
+                {
+                    ds18b20_ok = 1U;
+                }
+            }
+
+            if (ds18b20_ok != 0U)
             {
                 group->temperature = temperature;
                 group->ds18b20_online = 1U;

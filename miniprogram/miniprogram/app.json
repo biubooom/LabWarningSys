@@ -1,0 +1,16 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/history/history"
+  ],
+  "window": {
+    "backgroundColor": "#F3F1EA",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#18343A",
+    "navigationBarTitleText": "实验室预警系统",
+    "navigationBarTextStyle": "white"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

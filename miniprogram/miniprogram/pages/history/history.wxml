@@ -1,0 +1,55 @@
+<view class="page">
+  <view class="header-card">
+    <view class="header-card__title">历史曲线</view>
+    <view class="header-card__subtitle">查看四组传感器最近 30 条上报趋势</view>
+  </view>
+
+  <view class="selector-card">
+    <view class="selector-card__label">选择分组</view>
+    <view class="chip-row">
+      <view
+        wx:for="{{groupOptions}}"
+        wx:key="id"
+        class="chip {{activeGroupId === item.id ? 'chip--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="selectGroup"
+      >
+        {{item.label}}
+      </view>
+    </view>
+
+    <view class="selector-card__label selector-card__label--spaced">选择指标</view>
+    <view class="chip-row">
+      <view
+        wx:for="{{metricOptions}}"
+        wx:key="key"
+        class="chip {{activeMetricKey === item.key ? 'chip--active' : ''}}"
+        data-key="{{item.key}}"
+        bindtap="selectMetric"
+      >
+        {{item.label}}
+      </view>
+    </view>
+  </view>
+
+  <view class="summary-card">
+    <view class="summary-card__label">当前指标最新值</view>
+    <view class="summary-card__value">{{chartSummary}}<text class="summary-card__unit">{{chartUnit}}</text></view>
+  </view>
+
+  <view class="chart-card">
+    <canvas canvas-id="historyChart" class="history-canvas"></canvas>
+  </view>
+
+  <view class="state-card" wx:if="{{realtimeStatus && !loading && !errorMessage}}">
+    {{realtimeStatus}}
+  </view>
+
+  <view class="state-card" wx:if="{{loading}}">
+    正在加载历史数据...
+  </view>
+
+  <view class="state-card state-card--error" wx:if="{{errorMessage}}">
+    {{errorMessage}}
+  </view>
+</view>
