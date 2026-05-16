@@ -43,6 +43,8 @@ Core/Inc/*.tmp
 *.swp
 *.swo
 *~
+__pycache__/
+*.pyc
 
 # OS-specific files
 Thumbs.db
