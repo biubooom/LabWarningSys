@@ -1,0 +1,13 @@
+{
+  "name": "labAdminCleanup",
+  "version": "1.0.0",
+  "description": "清理实验室预警系统快照集合",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~2.4.0"
+  }
+}

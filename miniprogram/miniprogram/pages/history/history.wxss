@@ -16,6 +16,7 @@ page {
 .header-card,
 .selector-card,
 .summary-card,
+.prediction-card,
 .chart-card,
 .state-card {
   padding: 24rpx;
@@ -89,6 +90,19 @@ page {
   margin-left: 8rpx;
   font-size: 24rpx;
   color: #71838a;
+}
+
+.prediction-card__label {
+  font-size: 22rpx;
+  color: #6d7f86;
+  margin-bottom: 8rpx;
+}
+
+.prediction-card__value {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #18343a;
+  line-height: 1.5;
 }
 
 .history-canvas {

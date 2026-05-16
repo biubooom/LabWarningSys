@@ -26,6 +26,7 @@ Page({
     chartSummary: "--",
     chartUnit: "℃",
     records: [],
+    latestPredictionSummary: "暂无模型识别结果",
   },
 
   chartSize: null,
@@ -173,9 +174,19 @@ Page({
     }
 
     this.lastHistorySignature = nextSignature;
+    const latestRecord = nextRecords.length ? nextRecords[nextRecords.length - 1] : null;
+    let latestPredictionSummary = "暂无模型识别结果";
+    if (latestRecord && latestRecord.sequencePrediction) {
+      latestPredictionSummary =
+        `${latestRecord.sequencePrediction.displayName} ` +
+        `(置信度 ${latestRecord.sequencePrediction.confidence} / 源头 ${latestRecord.sequencePrediction.originDisplayName})`;
+    } else if (latestRecord && latestRecord.sequenceReady) {
+      latestPredictionSummary = `模型已就绪，窗口长度 ${latestRecord.sequenceLength || 0} / 16`;
+    }
 
     const nextState = {
       records: nextRecords,
+      latestPredictionSummary,
       realtimeStatus,
       errorMessage: clearError ? nextErrorMessage : (nextErrorMessage || this.data.errorMessage),
     };
@@ -194,6 +205,9 @@ Page({
 
     return {
       groups,
+      sequenceReady: !!(record && record.sequenceReady),
+      sequenceLength: Number((record && record.sequenceLength) || 0),
+      sequencePrediction: this.normalizeSequencePrediction(record && record.sequencePrediction),
       updatedAt: record && (record.snapshotTime || record.updatedAt) ? (record.snapshotTime || record.updatedAt) : "--",
       updatedAtMs: Number(
         (record && (record.snapshotTimeMs || record.updatedAtMs)) || 0
@@ -226,6 +240,25 @@ Page({
     }
 
     return Number(numericValue.toFixed(1));
+  },
+
+  normalizeSequencePrediction(sequencePrediction) {
+    if (!sequencePrediction || typeof sequencePrediction !== "object") {
+      return null;
+    }
+
+    const confidence = Number(sequencePrediction.confidence || 0);
+
+    return {
+      stateLabel: sequencePrediction.stateLabel || sequencePrediction.state_label || "",
+      displayName: sequencePrediction.displayName || sequencePrediction.display_name || "未识别",
+      confidence: Number.isNaN(confidence) ? 0 : Number(confidence.toFixed(4)),
+      originLabel: sequencePrediction.originLabel || sequencePrediction.origin_label || "",
+      originDisplayName: sequencePrediction.originDisplayName || sequencePrediction.origin_display_name || "无明确源头",
+      originConfidence: Number.isNaN(Number(sequencePrediction.originConfidence || sequencePrediction.origin_confidence || 0))
+        ? 0
+        : Number(Number(sequencePrediction.originConfidence || sequencePrediction.origin_confidence || 0).toFixed(4)),
+    };
   },
 
   getChartBounds(values) {

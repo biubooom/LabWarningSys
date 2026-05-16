@@ -14,7 +14,7 @@
     <view class="status-item">
       <view class="status-item__label">系统状态</view>
       <view class="status-item__value {{systemAlarm ? 'status-item__value--alarm' : 'status-item__value--normal'}}">
-        {{systemAlarm ? '告警中' : '正常'}}
+        {{thresholdState.displayName}}
       </view>
     </view>
     <view class="status-item">
@@ -23,9 +23,115 @@
         {{linkOnline ? 'ONLINE' : 'OFFLINE'}}
       </view>
     </view>
-    <view class="status-item status-item--wide">
-      <view class="status-item__label">同步状态</view>
-      <view class="status-item__value">{{loading ? '实时同步中...' : '数据自动刷新中'}}</view>
+  </view>
+
+  <view class="ai-card" wx:if="{{sequencePrediction || sequenceReady}}">
+    <view class="ai-card__header">
+      <view class="ai-card__title">GRU 预警识别</view>
+      <view class="ai-card__badge {{sequenceReady ? 'ai-card__badge--ready' : 'ai-card__badge--pending'}}">
+        {{sequenceReady ? '模型已就绪' : '等待满 16 帧'}}
+      </view>
+    </view>
+    <view class="ai-card__meta">当前窗口长度：{{sequenceLength}} / 16</view>
+    <view class="ai-card__content" wx:if="{{sequencePrediction}}">
+      <view class="ai-card__result">{{sequencePrediction.displayName}}</view>
+      <view class="ai-card__detail">
+        <text>标签：{{sequencePrediction.stateLabel}}</text>
+        <text>置信度：{{sequencePrediction.confidence}}</text>
+        <text>预警源头：{{sequencePrediction.originDisplayName}}</text>
+      </view>
+      <view class="ai-debug" wx:if="{{sequencePrediction.debug}}">
+        <view class="ai-debug__title">GRU 调试窗口</view>
+        <view class="ai-debug__meta">窗口长度：{{sequencePrediction.debug.windowLength}} / 16</view>
+
+        <view class="ai-debug__section" wx:if="{{sequencePrediction.debug.probabilitiesSorted.length}}">
+          <view class="ai-debug__label">概率排序</view>
+          <view
+            class="ai-debug__probability"
+            wx:for="{{sequencePrediction.debug.probabilitiesSorted}}"
+            wx:key="label"
+          >
+            <text>{{item.label}}</text>
+            <text>{{item.probability}}</text>
+          </view>
+        </view>
+
+        <view class="ai-debug__section" wx:if="{{sequencePrediction.debug.groupTrends.length}}">
+          <view class="ai-debug__label">四角窗口趋势</view>
+          <view
+            class="ai-debug__group"
+            wx:for="{{sequencePrediction.debug.groupTrends}}"
+            wx:key="groupId"
+          >
+            <view class="ai-debug__group-title">{{item.cornerName}}</view>
+            <view class="ai-debug__group-line">
+              首帧 T/H/S/L：{{item.firstFrame.temperature}} / {{item.firstFrame.humidity}} / {{item.firstFrame.smoke}} / {{item.firstFrame.light}}
+            </view>
+            <view class="ai-debug__group-line">
+              末帧 T/H/S/L：{{item.latestFrame.temperature}} / {{item.latestFrame.humidity}} / {{item.latestFrame.smoke}} / {{item.latestFrame.light}}
+            </view>
+            <view class="ai-debug__group-line">
+              Max T/S：{{item.maxTemperature}} / {{item.maxSmoke}}，Rise T/S：{{item.temperatureRise}} / {{item.smokeRise}}
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="ai-card__content" wx:else>
+      <view class="ai-card__placeholder">设备上报累计到 16 帧后，会在这里显示模型识别结果。</view>
+    </view>
+  </view>
+
+  <view class="lab-map-card">
+    <view class="lab-map-card__header">
+      <view>
+        <view class="lab-map-card__title">实验室状态图</view>
+        <view class="lab-map-card__subtitle">四角传感器严重度热区渲染</view>
+      </view>
+      <view class="lab-map-card__summary" wx:if="{{dominantGroup}}">
+        <view class="lab-map-card__summary-label">异常源</view>
+        <view class="lab-map-card__summary-value">{{dominantGroupDisplayName}}</view>
+      </view>
+    </view>
+
+    <view class="lab-map">
+      <view
+        class="lab-map__heat {{item.positionClass}}"
+        wx:for="{{groups}}"
+        wx:key="id"
+        style="{{item.overlayStyle}}"
+      ></view>
+
+      <view class="lab-map__room">
+        <view class="lab-map__wall lab-map__wall--top"></view>
+        <view class="lab-map__wall lab-map__wall--left"></view>
+        <view class="lab-map__wall lab-map__wall--right"></view>
+        <view class="lab-map__wall lab-map__wall--bottom"></view>
+        <view class="lab-map__door"></view>
+        <view class="lab-map__bench lab-map__bench--top"></view>
+        <view class="lab-map__bench lab-map__bench--left"></view>
+        <view class="lab-map__bench lab-map__bench--right"></view>
+        <view class="lab-map__bench lab-map__bench--middle"></view>
+        <view class="lab-map__bench lab-map__bench--bottom"></view>
+      </view>
+
+      <view
+        class="lab-map__sensor {{item.positionClass}} {{item.isDominant ? 'lab-map__sensor--dominant' : ''}}"
+        wx:for="{{groups}}"
+        wx:key="id"
+      >
+        <view class="lab-map__sensor-dot"></view>
+        <view class="lab-map__sensor-text">
+          <view class="lab-map__sensor-name">{{item.cornerName}}</view>
+          <view class="lab-map__sensor-level">{{item.severityLabel}} · {{item.severityPercent}}</view>
+        </view>
+      </view>
+
+      <view class="lab-map__legend">
+        <view class="lab-map__legend-chip lab-map__legend-chip--cool">低</view>
+        <view class="lab-map__legend-bar"></view>
+        <view class="lab-map__legend-chip lab-map__legend-chip--hot">高</view>
+      </view>
     </view>
   </view>
 

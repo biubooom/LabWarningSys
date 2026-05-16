@@ -21,6 +21,7 @@ function buildEmptySnapshot() {
     })),
     linkOnline: false,
     systemAlarm: false,
+    thresholdState: null,
     updatedAt: "--",
   };
 }
@@ -50,6 +51,10 @@ function normalizeSnapshot(record) {
     )),
     linkOnline: !!record.linkOnline,
     systemAlarm: !!record.systemAlarm,
+    thresholdState: record.thresholdState || null,
+    sequencePrediction: record.sequencePrediction || null,
+    sequenceReady: !!record.sequenceReady,
+    sequenceLength: Number(record.sequenceLength || 0),
     updatedAt: record.snapshotTime || record.updatedAt || "--",
   };
 }
@@ -61,6 +66,10 @@ function normalizeHistoryRecord(record) {
     groups: snapshot.groups,
     linkOnline: snapshot.linkOnline,
     systemAlarm: snapshot.systemAlarm,
+    thresholdState: snapshot.thresholdState,
+    sequencePrediction: snapshot.sequencePrediction,
+    sequenceReady: snapshot.sequenceReady,
+    sequenceLength: snapshot.sequenceLength,
     updatedAt: record.snapshotTime || record.updatedAt || "--",
     updatedAtMs: Number(record.snapshotTimeMs || record.updatedAtMs || 0),
   };

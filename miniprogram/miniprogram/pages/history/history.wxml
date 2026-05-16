@@ -37,6 +37,11 @@
     <view class="summary-card__value">{{chartSummary}}<text class="summary-card__unit">{{chartUnit}}</text></view>
   </view>
 
+  <view class="prediction-card">
+    <view class="prediction-card__label">最近一次模型识别</view>
+    <view class="prediction-card__value">{{latestPredictionSummary}}</view>
+  </view>
+
   <view class="chart-card">
     <canvas canvas-id="historyChart" class="history-canvas"></canvas>
   </view>

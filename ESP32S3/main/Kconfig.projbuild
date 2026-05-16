@@ -23,49 +23,38 @@ menu "LabWarning Configuration"
 
     endmenu
 
-    menu "OneNET Configuration"
+    menu "Cloud Report Configuration"
 
-        config APP_ONENET_HOST
-            string "MQTT Host"
-            default "mqtt://studio-mqtt.heclouds.com:1883"
+        config APP_CLOUD_REPORT_URL
+            string "Device report URL"
+            default "http://127.0.0.1/device/report"
             help
-                配置OneNET平台的MQTT服务器地址。
+                配置ESP32直连自建后端的HTTP上报地址，例如 https://example.com/device/report 。
 
-        config APP_ONENET_VERSION
-            string "Token Version"
-            default "2018-10-31"
+        config APP_DEVICE_REPORT_TOKEN
+            string "Device report token"
+            default ""
             help
-                配置OneNET Token版本号。
+                配置设备请求头 x-device-token 使用的预共享鉴权 token。
 
-        config APP_ONENET_METHOD
-            string "Token Method"
-            default "sha256"
+        config APP_CLOUD_REPORT_TIMEOUT_MS
+            int "Report timeout (ms)"
+            range 1000 60000
+            default 10000
             help
-                配置OneNET Token签名算法。
+                配置设备上报HTTP请求超时时间。
 
-        config APP_ONENET_TOKEN_EXPIRY
-            string "Token Expiry"
-            default "1893456000"
-            help
-                配置OneNET Token过期时间戳，单位为秒。
-
-        config APP_ONENET_PRODUCT_ID
+        config APP_PRODUCT_ID
             string "Product ID"
-            default "psBD4RzYDw"
+            default "lab-warning"
             help
-                配置OneNET产品ID。
+                配置设备上报载荷中的产品标识。
 
-        config APP_ONENET_DEVICE_NAME
+        config APP_DEVICE_NAME
             string "Device Name"
             default "ESP32-S3"
             help
-                配置OneNET设备名称。
-
-        config APP_ONENET_DEVICE_KEY
-            string "Device Key"
-            default "bm9LcTExUFNtOXFsaUY4dkg4MUZHdHdNdTY3WE80NDQ="
-            help
-                配置OneNET设备密钥。
+                配置设备上报载荷中的设备名称。
 
     endmenu
 

@@ -33,6 +33,7 @@ static TaskHandle_t SensorDetectTaskHandle;
 static TaskHandle_t SensorSampleTaskHandle;
 static TaskHandle_t OLEDTaskHandle;
 static TaskHandle_t UartTxTaskHandle;
+static volatile uint8_t g_ds18b20_assignment_dirty = 1U;
 
 /* 四组传感器固定槽位数量 */
 #define SENSOR_GROUP_COUNT          4U
@@ -50,7 +51,6 @@ static TaskHandle_t UartTxTaskHandle;
 #define UART_TX_TASK_NAME           "UART_TX_Task"
 #define UART_TX_TASK_STACK_SIZE     1024U
 #define UART_TX_TASK_PRIORITY       (tskIDLE_PRIORITY + 3)
-
 /* 采样、显示和插拔检测相关时序参数 */
 #define DET_DEBOUNCE_MS             50U      // DET插拔检测消抖时间，单位毫秒
 #define SAMPLE_PERIOD_MS            2000U    // 传感器采样任务运行周期，单位毫秒
@@ -60,7 +60,7 @@ static TaskHandle_t UartTxTaskHandle;
 #define DHT22_RETRY_COUNT           3U       // DHT22单次采样失败后的最大重试次数 
 #define DHT22_RETRY_DELAY_MS        100U     // DHT22两次重试之间的间隔时间，单位毫秒 
 #define DS18B20_CONVERT_WAIT_MS     800U     // DS18B20并行转换等待时间，单位毫秒
-#define DS18B20_RETRY_COUNT         2U       // DS18B20读取失败后的额外补读次数
+#define DS18B20_RETRY_COUNT         0U       // DS18B20读取失败后先不补读，用于验证基础采样周期
 #define DS18B20_RETRY_DELAY_MS      20U      // DS18B20补读前的短暂间隔，单位毫秒
 
 /* ADC基础参数与单总线设备数量上限 */
@@ -148,6 +148,17 @@ static float ADC_ToPercent(uint16_t adc_value)
 {
     /* 模拟量统一换算为 0~100，便于 OLED 和串口直接展示 */
     return ((float)adc_value * 100.0f) / ADC_FULL_SCALE;
+}
+
+/**
+  * @brief  将ADC原始值换算为“光照强度百分比”
+  * @param  adc_value: ADC采样原始值
+  * @note   当前光敏分压电路表现为“光越强，ADC值越小”，因此这里做反向映射
+  * @retval 换算后的光照强度百分比，数值越大表示光越强
+  */
+static float ADC_ToLightPercent(uint16_t adc_value)
+{
+    return 100.0f - ADC_ToPercent(adc_value);
 }
 
 /**
@@ -297,6 +308,11 @@ static void RefreshDs18b20Assignments(void)
     }
 }
 
+static void MarkDs18b20AssignmentsDirty(void)
+{
+    g_ds18b20_assignment_dirty = 1U;
+}
+
 /**
   * @brief  初始化指定组的传感器运行状态
   * @param  group_index: 传感器组索引，范围0~3
@@ -315,10 +331,10 @@ static void SensorGroup_Init(uint8_t group_index)
     group->temperature = 0.0f;
     group->humidity = 0.0f;
     group->smoke = ADC_ToPercent(g_adc_buffer[s_smoke_adc_index[group_index]]);
-    group->light = ADC_ToPercent(g_adc_buffer[s_light_adc_index[group_index]]);
+    group->light = ADC_ToLightPercent(g_adc_buffer[s_light_adc_index[group_index]]);
 
     (void)DHT22_InitGroup(group_index);
-    RefreshDs18b20Assignments();
+    MarkDs18b20AssignmentsDirty();
     /* LED 仅表示该组模块已接入并完成初始化，不表示告警 */
     GroupSetLed(group_index, 1U);
 }
@@ -333,7 +349,7 @@ static void SensorGroup_Deinit(uint8_t group_index)
 {
     g_sensor_groups[group_index].detected = 0U;
     GroupClearData(group_index);
-    RefreshDs18b20Assignments();
+    MarkDs18b20AssignmentsDirty();
     GroupSetLed(group_index, 0U);
 }
 
@@ -448,8 +464,12 @@ static void SensorSample_Task(void *pvParameters)
 
     while (1)
     {
-        /* 每轮都刷新一次 ROM 绑定，适配热插拔场景 */
-        RefreshDs18b20Assignments();
+        /* 仅在插拔变化后重新搜索单总线设备，避免每轮全总线搜索拖慢采样周期。 */
+        if (g_ds18b20_assignment_dirty != 0U)
+        {
+            RefreshDs18b20Assignments();
+            g_ds18b20_assignment_dirty = 0U;
+        }
         ds18b20_conversion_started = 0U;
 
         for (uint8_t group_index = 0U; group_index < SENSOR_GROUP_COUNT; group_index++)
@@ -476,7 +496,7 @@ static void SensorSample_Task(void *pvParameters)
 
             /* MQ2 和光照来自 ADC DMA 缓冲区，按资料里的固定顺序取值 */
             group->smoke = ADC_ToPercent(g_adc_buffer[s_smoke_adc_index[group_index]]);
-            group->light = ADC_ToPercent(g_adc_buffer[s_light_adc_index[group_index]]);
+            group->light = ADC_ToLightPercent(g_adc_buffer[s_light_adc_index[group_index]]);
 
             if ((group->detected == 0U) || (group->initialized == 0U))
             {
@@ -543,7 +563,8 @@ static void SensorSample_Task(void *pvParameters)
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(DS18B20_RETRY_DELAY_MS));
-                if (DS18B20_ReadTemperatureByRom(group->rom_code, &temperature) == DS18B20_OK)
+                /* 初次已完成全总线并行转换，补读阶段只重读 scratchpad，避免每组重试再额外等待 750ms。 */
+                if (DS18B20_ReadTemperatureByRomWithoutConvert(group->rom_code, &temperature) == DS18B20_OK)
                 {
                     ds18b20_ok = 1U;
                 }
@@ -673,26 +694,27 @@ static void UART_TX_Task(void *pvParameters)
         length = snprintf(tx_buffer,
                           sizeof(tx_buffer),
                           "{\"groups\":["
-                          "{\"online\":%u,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
-                          "{\"online\":%u,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
-                          "{\"online\":%u,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
-                          "{\"online\":%u,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f}]}\r\n",
-                          (unsigned int)g_sensor_groups[0].detected,
+                          "{\"online\":%s,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
+                          "{\"online\":%s,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
+                          "{\"online\":%s,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f},"
+                          "{\"online\":%s,\"temperature\":%.1f,\"humidity\":%.1f,\"smoke\":%.1f,\"light\":%.1f}"
+                          "]}\r\n",
+                          (g_sensor_groups[0].detected != 0U) ? "true" : "false",
                           g_sensor_groups[0].temperature,
                           g_sensor_groups[0].humidity,
                           g_sensor_groups[0].smoke,
                           g_sensor_groups[0].light,
-                          (unsigned int)g_sensor_groups[1].detected,
+                          (g_sensor_groups[1].detected != 0U) ? "true" : "false",
                           g_sensor_groups[1].temperature,
                           g_sensor_groups[1].humidity,
                           g_sensor_groups[1].smoke,
                           g_sensor_groups[1].light,
-                          (unsigned int)g_sensor_groups[2].detected,
+                          (g_sensor_groups[2].detected != 0U) ? "true" : "false",
                           g_sensor_groups[2].temperature,
                           g_sensor_groups[2].humidity,
                           g_sensor_groups[2].smoke,
                           g_sensor_groups[2].light,
-                          (unsigned int)g_sensor_groups[3].detected,
+                          (g_sensor_groups[3].detected != 0U) ? "true" : "false",
                           g_sensor_groups[3].temperature,
                           g_sensor_groups[3].humidity,
                           g_sensor_groups[3].smoke,

@@ -1,13 +1,12 @@
 {
   "name": "lab-push-receiver",
   "version": "1.0.0",
-  "description": "Receive OneNET push data and sync to WeChat cloud database",
+  "description": "Receive direct device reports, process alarms, and sync to WeChat cloud database",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
-    "@cloudbase/node-sdk": "^2.10.0",
     "express": "^4.19.2"
   }
 }
